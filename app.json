@@ -1,0 +1,22 @@
+{
+  "pages": [
+    "pages/today/today",
+    "pages/shop/shop",
+    "pages/plan/plan",
+    "pages/me/me",
+    "pages/login/login",
+    "pages/setup/setup",
+    "pages/parent-tasks/parent-tasks",
+    "pages/parent-approve/parent-approve"
+  ],
+  "window": {
+    "navigationBarTitleText": "Check EveryDay",
+    "navigationBarBackgroundColor": "#FDF8F3",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#FDF8F3",
+    "backgroundTextStyle": "light"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

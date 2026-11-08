@@ -1,0 +1,95 @@
+<view class="page" wx:if="{{ready}}">
+  <!-- 学生端 -->
+  <block wx:if="{{role === 'child'}}">
+    <view class="hd">
+      <view class="h1">积分商城</view>
+      <view class="muted">攒下来的分，可以换成真的东西</view>
+    </view>
+
+    <view class="card bal">
+      <view class="bal-num">{{balance}}</view>
+      <view class="muted">我的积分</view>
+      <view class="goal" wx:if="{{goal}}">
+        <view class="grow">
+          <view class="h3">{{goal.icon}} {{goal.name}}</view>
+          <view class="tiny">{{goal.gap > 0 ? '还差 ' + goal.gap + ' 分' : '现在就可以换'}}</view>
+        </view>
+        <view class="goal-pct">{{goal.percent}}%</view>
+      </view>
+    </view>
+
+    <view class="sec-title">我的心愿</view>
+    <view class="card rec" wx:if="{{wishes.length > 0}}">
+      <view class="rec-row" wx:for="{{wishes}}" wx:key="id">
+        <view class="rec-icon">{{item.status === 'approved' ? '🌟' : '💭'}}</view>
+        <view class="grow">
+          <view class="body">{{item.title}}</view>
+          <view class="tiny">{{item.statusText}}</view>
+        </view>
+      </view>
+    </view>
+    <view class="wish-empty tiny" wx:else>想要什么礼物？许个心愿，爸爸妈妈看到了会考虑</view>
+    <view class="wish-add" bindtap="onAddWish">💭 许个心愿</view>
+
+    <view class="sec-title">礼物</view>
+    <view class="grid">
+      <view class="gift {{item.canBuy ? 'buyable' : ''}}" wx:for="{{gifts}}" wx:key="id" data-id="{{item.id}}" bindtap="onGift">
+        <view class="gift-icon">{{item.icon}}</view>
+        <view class="gift-name">{{item.name}}</view>
+        <view class="gift-cost">{{item.cost}} 分</view>
+        <view class="gift-bar">
+          <view class="gift-bar-in {{item.canBuy ? 'full' : ''}}" style="width:{{item.percent}}%"></view>
+        </view>
+        <view class="gift-btn {{item.canBuy ? 'on' : ''}}">{{item.canBuy ? '点我兑换' : item.stateText}}</view>
+      </view>
+      <view class="empty" wx:if="{{gifts.length === 0}}">还没有礼物，让爸爸妈妈加几件吧</view>
+    </view>
+
+    <block wx:if="{{records.length > 0}}">
+      <view class="sec-title">兑换记录</view>
+      <view class="card rec">
+        <view class="rec-row" wx:for="{{records}}" wx:key="id">
+          <view class="rec-icon">{{item.giftIcon}}</view>
+          <view class="grow">
+            <view class="body">{{item.giftName}}</view>
+            <view class="tiny">{{item.statusText}}</view>
+          </view>
+          <view class="rec-cost">-{{item.cost}}</view>
+        </view>
+      </view>
+    </block>
+  </block>
+
+  <!-- 家长端 -->
+  <block wx:else>
+    <view class="hd">
+      <view class="h1">礼物管理</view>
+      <view class="muted">上架的礼物会出现在孩子的商城里</view>
+    </view>
+
+    <view class="card bal-row">
+      <view class="grow">
+        <view class="h3">账户积分 {{balance}}</view>
+        <view class="tiny">兑换申请需要你同意后才会扣分</view>
+      </view>
+      <view class="pill" bindtap="goApprove">待审批 {{pendingCount}}</view>
+    </view>
+
+    <view class="card mg-row" wx:for="{{allGifts}}" wx:key="id">
+      <view class="mg-icon">{{item.icon}}</view>
+      <view class="grow">
+        <view class="body">{{item.name}}</view>
+        <view class="tiny">{{item.cost}} 分 · {{item.active ? '已上架' : '已下架'}}{{item.fromWish ? ' · 来自心愿' : ''}}</view>
+      </view>
+      <view class="revoke-btn" data-id="{{item.id}}" bindtap="onGiftMore">管理</view>
+    </view>
+
+    <button class="btn btn-primary add-btn" bindtap="onAddGift">加一个礼物</button>
+    <view class="tail tiny">小礼物建议 80–150 分（攒 2–3 天就能换到），大件 800–1500 分。</view>
+  </block>
+</view>
+
+<view class="boot" wx:else>
+  <view class="boot-emoji">🎁</view>
+  <view class="tiny">正在同步积分和礼物…</view>
+</view>

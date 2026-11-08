@@ -1,0 +1,71 @@
+<view class="page-plain">
+  <view class="hd">
+    <view class="h1">审批中心</view>
+    <view class="muted">{{childName}}现在有 {{balance}} 分</view>
+  </view>
+
+  <block wx:if="{{pendingWishes.length > 0}}">
+    <view class="sec-title">孩子的心愿</view>
+    <view class="card rd" wx:for="{{pendingWishes}}" wx:key="id">
+      <view class="rd-hd">
+        <view class="rd-icon">💭</view>
+        <view class="grow">
+          <view class="body">{{item.title}}</view>
+          <view class="tiny">{{item.date}} 许的{{item.note ? ' · ' + item.note : ''}}</view>
+        </view>
+      </view>
+      <view class="rd-actions">
+        <view class="mini danger" data-id="{{item.id}}" bindtap="onWishReject">不通过</view>
+        <view class="mini primary" data-id="{{item.id}}" bindtap="onWishApprove">同意</view>
+      </view>
+    </view>
+  </block>
+
+  <view class="sec-title">等待处理</view>
+  <view class="card rd" wx:for="{{pending}}" wx:key="id">
+    <view class="rd-hd">
+      <view class="rd-icon">{{item.giftIcon}}</view>
+      <view class="grow">
+        <view class="body">{{item.giftName}}</view>
+        <view class="tiny">{{item.date}} 申请 · 需要 {{item.cost}} 分</view>
+      </view>
+    </view>
+    <view class="rd-actions">
+      <view class="mini danger" data-id="{{item.id}}" bindtap="onReject">不通过</view>
+      <view class="mini primary" data-id="{{item.id}}" bindtap="onApprove">同意并扣分</view>
+    </view>
+  </view>
+  <view class="empty" wx:if="{{pending.length === 0 && pendingWishes.length === 0}}">暂时没有待审批的事</view>
+
+  <block wx:if="{{done.length > 0}}">
+    <view class="sec-title">最近处理过的</view>
+    <view class="card">
+      <view class="his" wx:for="{{done}}" wx:key="id">
+        <view class="rd-icon sm">{{item.giftIcon}}</view>
+        <view class="grow">
+          <view class="body">{{item.giftName}}</view>
+          <view class="tiny">{{item.date}} · {{item.statusText}} · {{item.cost}} 分</view>
+        </view>
+        <view
+          class="mini primary"
+          wx:if="{{item.status === 'approved'}}"
+          data-id="{{item.id}}"
+          bindtap="onFulfill"
+        >标记已兑现</view>
+      </view>
+    </view>
+  </block>
+
+  <block wx:if="{{doneWishes.length > 0}}">
+    <view class="sec-title">心愿处理记录</view>
+    <view class="card">
+      <view class="his" wx:for="{{doneWishes}}" wx:key="id">
+        <view class="rd-icon sm">{{item.status === 'approved' ? '🌟' : '💭'}}</view>
+        <view class="grow">
+          <view class="body">{{item.title}}</view>
+          <view class="tiny">{{item.date}} · {{item.statusText}}</view>
+        </view>
+      </view>
+    </view>
+  </block>
+</view>

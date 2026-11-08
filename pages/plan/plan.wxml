@@ -1,0 +1,122 @@
+<view class="page" wx:if="{{ready}}">
+  <!-- 学生端 -->
+  <block wx:if="{{role === 'child'}}">
+    <view class="hd">
+      <view class="h1">我的成长</view>
+      <view class="muted">每一天的勾，都算数</view>
+    </view>
+
+    <view class="card title-card">
+      <view class="t-label">当前称号</view>
+      <view class="t-name">{{title.name}}</view>
+      <view class="muted" wx:if="{{title.next}}">再攒 {{title.gap}} 分，成为「{{title.next}}」</view>
+      <view class="muted" wx:else>已经是最高称号啦</view>
+    </view>
+
+    <view class="nums">
+      <view class="num-item">
+        <view class="num">🔥 {{streak}}</view>
+        <view class="tiny">连续天数</view>
+      </view>
+      <view class="num-item">
+        <view class="num">{{earned}}</view>
+        <view class="tiny">累计获得</view>
+      </view>
+      <view class="num-item">
+        <view class="num">{{balance}}</view>
+        <view class="tiny">当前积分</view>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="between cal-hd">
+        <view class="h3">{{monthLabel}}</view>
+        <view class="tiny">深色 = 全部完成</view>
+      </view>
+      <view class="cal">
+        <view class="cal-w" wx:for="{{weekNames}}" wx:key="*this">{{item}}</view>
+        <view
+          class="cal-cell"
+          wx:for="{{cells}}"
+          wx:for-item="cell"
+          wx:key="id"
+        >
+          <view
+            wx:if="{{!cell.empty}}"
+            class="cal-d lv{{cell.level}} {{cell.isToday ? 'today' : ''}}"
+          >{{cell.day}}</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="card coupon">
+      <view class="grow">
+        <view class="h3">🧿 护身符</view>
+        <view class="tiny">{{coupon.used ? '这个月已经用掉了，下个月还有一次' : '每月一次，断签时可以把连击接回来'}}</view>
+      </view>
+      <view class="pill pill-pink" wx:if="{{canUseCoupon}}" bindtap="onUseCoupon">现在用掉</view>
+      <view class="pill pill-green" wx:else>{{coupon.used ? '已使用' : '未使用'}}</view>
+    </view>
+  </block>
+
+  <!-- 家长端 -->
+  <block wx:else>
+    <view class="hd">
+      <view class="h1">学习报表</view>
+      <view class="muted">近两周，哪一项老是漏？</view>
+    </view>
+
+    <view class="card">
+      <view class="between">
+        <view class="h3">近 7 天完成率</view>
+        <view class="big-pct">{{avgPercent}}%</view>
+      </view>
+      <view class="bars">
+        <view class="bar-col" wx:for="{{week}}" wx:key="key">
+          <view class="bar-wrap">
+            <view class="bar-fill" style="height:{{item.percent}}%"></view>
+          </view>
+          <view class="bar-label">{{item.label}}</view>
+        </view>
+      </view>
+      <view class="tiny center">共 {{weekDone}} / {{weekTotal}} 项完成</view>
+    </view>
+
+    <view class="card">
+      <view class="h3">完成率最低的几项</view>
+      <view class="tiny sub">连续两周偏低，说明这一项的标准或难度需要调整</view>
+      <view class="stat" wx:for="{{stats}}" wx:key="key">
+        <view class="grow">
+          <view class="body">{{item.label}}</view>
+          <view class="tiny">{{item.group}}</view>
+        </view>
+        <view class="stat-bar">
+          <view class="stat-bar-in {{item.percent < 60 ? 'low' : ''}}" style="width:{{item.percent}}%"></view>
+        </view>
+        <view class="stat-pct">{{item.percent}}%</view>
+      </view>
+      <view class="empty" wx:if="{{stats.length === 0}}">还没有足够的数据</view>
+    </view>
+
+    <view class="card">
+      <view class="h3">积分收支</view>
+      <view class="io-row">
+        <view class="grow body">累计获得</view>
+        <view class="io-num up">+{{earned}}</view>
+      </view>
+      <view class="io-row">
+        <view class="grow body">已兑换</view>
+        <view class="io-num">-{{spent}}</view>
+      </view>
+      <view class="io-row">
+        <view class="grow body">当前结余</view>
+        <view class="io-num strong">{{balance}}</view>
+      </view>
+    </view>
+  </block>
+</view>
+
+<view class="boot" wx:else>
+  <view class="boot-emoji">🌱</view>
+  <view class="tiny">正在同步成长记录…</view>
+</view>

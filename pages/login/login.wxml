@@ -1,0 +1,22 @@
+<view class="page-plain login-page">
+  <view class="login-main">
+    <view class="brand">
+      <view class="logo">✅</view>
+      <view class="title-row">
+        <text class="h1">Check EveryDay</text>
+        <text class="brand-tag">学生自我管理工具</text>
+      </view>
+      <view class="muted">学后十分钟，勾掉今天的事</view>
+    </view>
+
+    <button class="btn btn-primary wide" loading="{{loading}}" disabled="{{loading}}" bindtap="onWechat">
+      微信一键登录
+    </button>
+    <view class="btn-sub tiny">爸爸妈妈和孩子各用一台手机，数据实时同步</view>
+
+    <view class="err" wx:if="{{error}}">{{error}}</view>
+  </view>
+
+  <!-- 本地模式：弱化入口，贴底轻微露出 -->
+  <view class="local-link tiny" bindtap="goLocal">先不登录，在本机试试？</view>
+</view>

@@ -1,0 +1,233 @@
+const store = require('../../utils/store')
+const guard = require('../../utils/guard')
+
+Page({
+  data: {
+    role: 'child',
+    ready: false,
+    isLocal: false,
+    family: { name: '', childName: '' },
+    balance: 0,
+    streak: 0,
+    pendingCount: 0,
+    hasPin: false,
+    inviteCode: '',
+    account: '',
+    confirm: null
+  },
+
+  async onShow() {
+    const ok = await guard.ensureReady()
+    if (!ok) return
+    try {
+      this.refresh()
+    } catch (e) {
+      // 任何数据异常都不能把页面卡在加载态
+      this.setData({ ready: true })
+    }
+  },
+
+  refresh() {
+    if (!store.isSetup()) return
+    this.setData({
+      role: store.getRole(),
+      isLocal: store.isLocal(),
+      ready: true,
+      family: store.getFamily(),
+      balance: store.balance(),
+      streak: store.streak(),
+      hasPin: !!store.getPin(),
+      inviteCode: store.getInviteCode(),
+      account: store.sessionLabel(),
+      pendingCount: store.listRedemptions().filter(function (r) {
+        return r.status === 'pending'
+      }).length
+    })
+  },
+
+  onCopyCode() {
+    if (!this.data.inviteCode) return
+    wx.setClipboardData({
+      data: this.data.inviteCode,
+      success() {
+        wx.showToast({ title: '已复制，发给家人', icon: 'none' })
+      }
+    })
+  },
+
+  goShop() {
+    wx.navigateTo({ url: '/pages/shop/shop' })
+  },
+
+  goPlan() {
+    wx.navigateTo({ url: '/pages/plan/plan' })
+  },
+
+  onSwitchToParent() {
+    const pin = store.getPin()
+    if (!pin) {
+      this.applyRole('parent')
+      return
+    }
+    wx.showModal({
+      title: '输入家长密码',
+      editable: true,
+      placeholderText: '4 位数字',
+      success: (r) => {
+        if (!r.confirm) return
+        if ((r.content || '').trim() !== pin) {
+          wx.showToast({ title: '密码不对', icon: 'none' })
+          return
+        }
+        this.applyRole('parent')
+      }
+    })
+  },
+
+  onSwitchToChild() {
+    this.applyRole('child')
+  },
+
+  applyRole(role) {
+    getApp().switchRole(role)
+    this.setData({ role })
+    wx.showToast({ title: role === 'parent' ? '已切到家长端' : '已切到学生端', icon: 'none' })
+    wx.reLaunch({ url: '/pages/today/today' })
+  },
+
+  onSetPin() {
+    if (store.getPin()) {
+      wx.showActionSheet({
+        itemList: ['修改密码', '取消密码'],
+        success: (r) => {
+          if (r.tapIndex === 0) this.inputPin()
+          if (r.tapIndex === 1) {
+            store.setPin('').then((res) => {
+              this.refresh()
+              wx.showToast({ title: res.ok ? '已取消密码' : res.error, icon: 'none' })
+            })
+          }
+        }
+      })
+      return
+    }
+    this.inputPin()
+  },
+
+  inputPin() {
+    wx.showModal({
+      title: '设置 4 位家长密码',
+      editable: true,
+      placeholderText: '例如 2026',
+      success: async (r) => {
+        if (!r.confirm) return
+        const pin = (r.content || '').trim()
+        if (!/^\d{4}$/.test(pin)) {
+          wx.showToast({ title: '请输入 4 位数字', icon: 'none' })
+          return
+        }
+        const res = await store.setPin(pin)
+        this.refresh()
+        wx.showToast({ title: res.ok ? '已设置' : res.error, icon: 'none' })
+      }
+    })
+  },
+
+  goTasks() {
+    wx.navigateTo({ url: '/pages/parent-tasks/parent-tasks' })
+  },
+
+  goApprove() {
+    wx.navigateTo({ url: '/pages/parent-approve/parent-approve' })
+  },
+
+  // 本地模式：登录后可以把本机数据带到云端
+  goCloud() {
+    wx.showModal({
+      title: '登录并同步到云端',
+      content: '登录创建家庭后，这台手机上已有的打卡和积分可以一并带过去。',
+      confirmText: '去登录',
+      success(r) {
+        if (!r.confirm) return
+        // 只退本地模式、保留本机文档，登录建家庭后再决定是否迁移
+        store.exitLocal()
+        wx.reLaunch({ url: '/pages/login/login' })
+      }
+    })
+  },
+
+  onReset() {
+    const isLocal = this.data.isLocal
+    this.setData({
+      confirm: {
+        title: isLocal ? '重置本地数据' : '清空所有数据',
+        content: isLocal
+          ? '会清掉这台手机上的任务、打卡记录、积分和礼物，回到初始清单。清完继续在本地使用，无法恢复。'
+          : '会删除全部任务、打卡记录、积分和礼物，家人手机上的内容也会一起清空，且无法恢复。',
+        confirmText: '清空',
+        action: 'reset'
+      }
+    })
+  },
+
+  onSignOut() {
+    if (this.data.isLocal) {
+      this.setData({
+        confirm: {
+          title: '清空本地数据',
+          content: '会删掉这台手机上全部打卡记录和积分，并退出到登录选择，无法恢复。',
+          confirmText: '清空',
+          action: 'clearLocal'
+        }
+      })
+      return
+    }
+    this.setData({
+      confirm: {
+        title: '退出登录',
+        content: '退出后需要重新登录才能继续使用，家里的数据不会删除。',
+        confirmText: '退出',
+        action: 'signOut'
+      }
+    })
+  },
+
+  // 页面内自绘确认框（不依赖 wx.showModal，预览环境也能点）
+  onConfirmCancel() {
+    this.setData({ confirm: null })
+  },
+
+  async onConfirmOk() {
+    const box = this.data.confirm
+    if (!box) return
+    this.setData({ confirm: null })
+    if (box.action === 'reset') {
+      let res = { ok: false, error: '没清成，再试一次' }
+      try {
+        res = await store.resetAll()
+      } catch (e) {}
+      if (!res.ok) {
+        wx.showToast({ title: res.error || '清空失败', icon: 'none' })
+        return
+      }
+      wx.showToast({ title: '已清空', icon: 'none' })
+      wx.reLaunch({ url: '/pages/today/today' })
+      return
+    }
+    if (box.action === 'clearLocal') {
+      try {
+        store.clearLocalData()
+      } catch (e) {}
+      wx.reLaunch({ url: '/pages/login/login' })
+      return
+    }
+    if (box.action === 'signOut') {
+      try {
+        await store.signOut()
+      } catch (e) {}
+      wx.reLaunch({ url: '/pages/login/login' })
+    }
+  },
+
+  noop() {}
+})

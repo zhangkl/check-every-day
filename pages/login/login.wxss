@@ -1,0 +1,92 @@
+/* 整页弹性布局：主内容垂直居中，本地链接贴底 */
+.login-page {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.login-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.brand {
+  padding: 0 8rpx 72rpx;
+  text-align: center;
+}
+
+.logo {
+  font-size: 76rpx;
+  line-height: 1;
+  margin-bottom: 28rpx;
+}
+
+.brand .h1 {
+  font-size: 48rpx;
+  margin-bottom: 14rpx;
+}
+
+/* 标题与副标签分行居中 */
+.title-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18rpx;
+  margin-bottom: 16rpx;
+}
+
+.title-row .h1 {
+  margin-bottom: 0;
+}
+
+.brand-tag {
+  font-size: 22rpx;
+  font-weight: 600;
+  letter-spacing: 4rpx;
+  color: #d9863c;
+  background: #fff5e9;
+  border-radius: 999rpx;
+  padding: 8rpx 26rpx;
+}
+
+.brand .muted {
+  line-height: 1.6;
+}
+
+/* 按钮下的一行说明 */
+.btn-sub {
+  margin: 18rpx 8rpx 0;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.wide {
+  margin-top: 0;
+  width: 100%;
+}
+
+/* 本地模式弱化入口：贴底小字链接 */
+.local-link {
+  margin-top: 48rpx;
+  text-align: center;
+  color: #c8bcb0;
+  padding: 16rpx;
+  text-decoration: underline;
+  text-decoration-color: #e8ddd0;
+}
+
+.local-link:active {
+  color: #a5988b;
+}
+
+.err {
+  margin-top: 36rpx;
+  padding: 20rpx 24rpx;
+  background: #fdeef2;
+  color: #c56279;
+  border-radius: 20rpx;
+  font-size: 26rpx;
+  line-height: 1.5;
+}

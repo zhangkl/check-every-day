@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "今日",
+  "navigationBarBackgroundColor": "#FDF8F3",
+  "navigationBarTextStyle": "black",
+  "enablePullDownRefresh": true,
+  "usingComponents": {}
+}

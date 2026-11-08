@@ -1,0 +1,112 @@
+<view class="page" wx:if="{{ready}}">
+  <view class="card hero2">
+    <view class="hero-line">
+      <view class="hero-title">{{heroTitle}}</view>
+      <view class="streak-chip" wx:if="{{role === 'child' && ov.streak > 0}}">🔥 {{ov.streak}} 天</view>
+      <view class="pill pill-pink" wx:elif="{{role === 'parent'}}">家长模式</view>
+    </view>
+    <view class="bar">
+      <view class="bar-in" style="width:{{ov.percent}}%"></view>
+    </view>
+    <view class="hero-meta">
+      <view class="meta-line">{{ov.done}}/{{ov.total}} 项 · 已得 {{ov.earned}} 分 · 攒了 {{ov.balance}} 分</view>
+      <view class="meta-line late" wx:if="{{lateText && ov.percent < 100}}">{{lateText}}</view>
+    </view>
+  </view>
+
+  <view class="quick" wx:if="{{role === 'parent'}}">
+    <view class="quick-item" bindtap="goTasks">
+      <view class="q-icon">🗂</view>
+      <view class="q-label">清单配置</view>
+    </view>
+    <view class="quick-item" bindtap="goApprove">
+      <view class="q-icon">📮</view>
+      <view class="q-label">待审批</view>
+      <view class="q-badge" wx:if="{{pending > 0}}">{{pending}}</view>
+    </view>
+    <view class="quick-item" bindtap="onAddExtra">
+      <view class="q-icon">➕</view>
+      <view class="q-label">临时加项</view>
+    </view>
+    <view class="quick-item" bindtap="onAdjust">
+      <view class="q-icon">🎯</view>
+      <view class="q-label">调积分</view>
+    </view>
+  </view>
+
+  <view class="group" wx:for="{{ov.groups}}" wx:key="key">
+    <view class="group-hd">
+      <view class="emoji">{{item.icon}}</view>
+      <view class="grow">
+        <view class="h3">{{item.title}}</view>
+        <view class="tiny">{{item.doneCount}}/{{item.total}} 项 · {{item.pointsEarned}}/{{item.pointsTotal}} 分</view>
+      </view>
+      <view class="g-badge {{item.allDone ? 'ok' : ''}}">{{item.percent}}%</view>
+    </view>
+
+    <view class="items">
+      <view
+        class="item {{it.done ? 'done' : ''}}"
+        wx:for="{{item.items}}"
+        wx:for-item="it"
+        wx:key="id"
+        data-id="{{it.id}}"
+        bindtap="onToggle"
+      >
+        <view class="box">{{it.done ? '✓' : ''}}</view>
+        <view class="grow">
+          <view class="it-title">{{it.title}}</view>
+          <view class="tiny" wx:if="{{role === 'parent' && it.done}}">{{it.time}} 勾选</view>
+          <view class="voice-row" wx:if="{{it.voice}}">
+            <view
+              class="voice-chip {{playingId === it.id ? 'playing' : ''}}"
+              data-id="{{it.id}}"
+              data-path="{{it.voice.path}}"
+              catchtap="onVoicePlay"
+            >
+              <text class="vc-icon">{{playingId === it.id ? '🔊' : '▶'}}</text>
+              <text>{{it.voice.duration}}″ 语音小结</text>
+            </view>
+            <view class="tiny vc-hint" wx:if="{{role === 'parent'}}">点开听听她怎么说</view>
+          </view>
+          <view class="tiny rec-tip" wx:if="{{recordingId === it.id}}">正在说…再点一下结束（最长 3 分钟）</view>
+          <view class="tiny rec-tip" wx:elif="{{uploadingId === it.id}}">正在保存…</view>
+        </view>
+        <view
+          wx:if="{{role === 'child'}}"
+          class="mic-btn {{recordingId === it.id ? 'rec' : ''}}"
+          data-id="{{it.id}}"
+          catchtap="onMic"
+        >{{recordingId === it.id ? '■' : '🎙'}}</view>
+        <view
+          wx:if="{{role === 'parent' && it.done}}"
+          class="revoke-btn"
+          data-id="{{it.id}}"
+          data-title="{{it.title}}"
+          catchtap="onRevoke"
+        >撤销</view>
+        <view class="it-points {{it.done ? 'on' : ''}}" wx:if="{{!(role === 'parent' && it.done)}}">{{it.points}} 分</view>
+        <view wx:if="{{floatId === it.id}}" class="float">{{floatText}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="tail tiny" wx:if="{{role === 'child'}}">每项旁的 🎙 可以说说今天学得怎么样，爸爸妈妈都听得到。</view>
+  <view class="tail tiny" wx:else>改了模板从明天生效；只影响今天请用「临时加项」。</view>
+
+  <view class="ft">
+    <view class="hd-date">{{ov.pretty}}</view>
+    <view class="corner-btn" bindtap="goMe">⚙️</view>
+  </view>
+</view>
+
+<view class="boot" wx:else>
+  <view class="boot-emoji">✅</view>
+  <view class="tiny">正在同步家里的清单…</view>
+</view>
+
+<view class="celebrate" wx:if="{{celebrate}}" bindtap="hideCelebrate">
+  <view class="cel-emoji">🎉</view>
+  <view class="cel-title">今天全部完成</view>
+  <view class="cel-sub">今天的你，比昨天靠谱一点点。</view>
+</view>

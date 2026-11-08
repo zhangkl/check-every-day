@@ -1,0 +1,107 @@
+<view class="page" wx:if="{{ready}}">
+  <view class="card profile">
+    <view class="avatar">{{role === 'child' ? '🧒' : '👨‍👩‍👧'}}</view>
+    <view class="grow">
+      <view class="h2">{{family.name}}</view>
+      <view class="muted">{{family.childName}} · {{role === 'child' ? '学生端' : '家长端'}}{{isLocal ? ' · 本地' : ''}}</view>
+    </view>
+    <view class="mini-stat">{{balance}} 分</view>
+  </view>
+
+  <view class="card invite" wx:if="{{!isLocal}}" bindtap="onCopyCode">
+    <view class="grow">
+      <view class="h3">家庭邀请码</view>
+      <view class="tiny">家人在自己手机上输入这个码就能加入</view>
+    </view>
+    <view class="invite-code">{{inviteCode || '——'}}</view>
+  </view>
+
+  <view class="card menu">
+    <block wx:if="{{role === 'parent'}}">
+      <view class="menu-item" bindtap="goTasks">
+        <view class="mi-icon">🗂</view>
+        <view class="grow body">清单配置</view>
+        <view class="mi-arrow">›</view>
+      </view>
+      <view class="menu-item" bindtap="goApprove">
+        <view class="mi-icon">📮</view>
+        <view class="grow body">审批中心</view>
+        <view class="mi-badge" wx:if="{{pendingCount > 0}}">{{pendingCount}}</view>
+        <view class="mi-arrow">›</view>
+      </view>
+      <view class="menu-item" bindtap="goShop">
+        <view class="mi-icon">🎁</view>
+        <view class="grow body">礼物管理</view>
+        <view class="mi-arrow">›</view>
+      </view>
+      <view class="menu-item" bindtap="goPlan">
+        <view class="mi-icon">📈</view>
+        <view class="grow body">完成报表</view>
+        <view class="mi-arrow">›</view>
+      </view>
+      <view class="menu-item" bindtap="onSetPin">
+        <view class="mi-icon">🔑</view>
+        <view class="grow body">家长密码</view>
+        <view class="tiny">{{hasPin ? '已设置' : '未设置'}}</view>
+        <view class="mi-arrow">›</view>
+      </view>
+      <view class="menu-item" bindtap="onSwitchToChild">
+        <view class="mi-icon">🧒</view>
+        <view class="grow body">切到学生端</view>
+        <view class="mi-arrow">›</view>
+      </view>
+    </block>
+    <block wx:else>
+      <view class="menu-item" bindtap="goShop">
+        <view class="mi-icon">🎁</view>
+        <view class="grow body">积分商城</view>
+        <view class="mi-arrow">›</view>
+      </view>
+      <view class="menu-item" bindtap="goPlan">
+        <view class="mi-icon">🌱</view>
+        <view class="grow body">我的成长</view>
+        <view class="tiny">🔥{{streak}} 天</view>
+        <view class="mi-arrow">›</view>
+      </view>
+      <view class="menu-item" bindtap="onSwitchToParent">
+        <view class="mi-icon">👨‍👩‍👧</view>
+        <view class="grow body">切换到家长端</view>
+        <view class="mi-arrow">›</view>
+      </view>
+      <view class="menu-item" wx:if="{{isLocal}}" bindtap="goCloud">
+        <view class="mi-icon">🌐</view>
+        <view class="grow body">登录并同步到云端</view>
+        <view class="mi-arrow">›</view>
+      </view>
+    </block>
+    <view class="menu-item" bindtap="onSignOut">
+      <view class="mi-icon">🚪</view>
+      <view class="grow body">{{isLocal ? '清空本地数据' : '退出登录'}}</view>
+      <view class="tiny" wx:if="{{!isLocal}}">{{account}}</view>
+      <view class="mi-arrow">›</view>
+    </view>
+  </view>
+
+  <block wx:if="{{role === 'parent'}}">
+    <view class="danger" bindtap="onReset">{{isLocal ? '重置本地数据（清空后继续用）' : '清空所有数据'}}</view>
+  </block>
+
+  <view class="ver tiny">Check EveryDay · v1.2 · {{isLocal ? '本地模式 · 数据只存这台手机' : '已开启云端同步'}}</view>
+</view>
+
+<view class="boot" wx:else>
+  <view class="boot-emoji">📔</view>
+  <view class="tiny">正在同步你的记录…</view>
+</view>
+
+<!-- 页面内确认框：不依赖 wx.showModal，预览/真机都能用 -->
+<view class="mask" wx:if="{{confirm}}" catchtap="onConfirmCancel">
+  <view class="sheet" catchtap="noop">
+    <view class="sheet-title">{{confirm.title}}</view>
+    <view class="sheet-content">{{confirm.content}}</view>
+    <view class="sheet-btns">
+      <view class="sheet-btn" bindtap="onConfirmCancel">先不了</view>
+      <view class="sheet-btn danger" bindtap="onConfirmOk">{{confirm.confirmText}}</view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,4 @@
+node_modules/
+.DS_Store
+.workbuddy/
+project.private.config.json

@@ -1,0 +1,86 @@
+<view class="page-plain">
+  <view class="hd">
+    <view class="h1">清单配置</view>
+    <view class="muted">改完之后，从明天开始生效</view>
+  </view>
+
+  <view class="card gt" wx:for="{{groups}}" wx:key="groupKey">
+    <block wx:if="{{editingKey !== item.groupKey}}">
+      <view class="gt-hd" data-key="{{item.groupKey}}" bindtap="toggleOpen">
+        <view class="emoji">{{item.icon}}</view>
+        <view class="grow">
+          <view class="h3">{{item.title}}<text class="off" wx:if="{{!item.active}}">已停用</text></view>
+          <view class="tiny">{{item.children.length}} 项 · 共 {{item.points}} 分 · {{item.repeatLabel}}</view>
+        </view>
+        <view class="chev">{{openKey === item.groupKey ? '▾' : '▸'}}</view>
+      </view>
+
+      <view class="gt-body" wx:if="{{openKey === item.groupKey}}">
+        <view
+          class="sub"
+          wx:for="{{item.children}}"
+          wx:for-item="c"
+          wx:key="id"
+          data-id="{{c.id}}"
+          data-key="{{item.groupKey}}"
+          bindtap="onEditChild"
+        >
+          <view class="grow body">{{c.title}}</view>
+          <view class="tiny">{{c.points}} 分</view>
+          <view class="chev-sm">›</view>
+        </view>
+        <view class="empty-sm" wx:if="{{item.children.length === 0}}">还没有子项，先加一项</view>
+
+        <view class="gt-actions">
+          <view class="mini" data-key="{{item.groupKey}}" catchtap="onAddChild">＋ 子项</view>
+          <view class="mini" data-key="{{item.groupKey}}" catchtap="onEditGroup">编辑</view>
+          <view class="mini" data-key="{{item.groupKey}}" catchtap="onToggleActive">{{item.active ? '停用' : '启用'}}</view>
+          <view class="mini danger" data-key="{{item.groupKey}}" catchtap="onDeleteGroup">删除</view>
+        </view>
+      </view>
+    </block>
+
+    <block wx:else>
+      <view class="edit">
+        <view class="h3">编辑「{{form.title}}」</view>
+        <input class="input" value="{{form.title}}" maxlength="12" bindinput="onFormTitle" />
+        <view class="emoji-strip">
+          <view
+            class="em {{form.icon === em ? 'on' : ''}}"
+            wx:for="{{emojis}}"
+            wx:for-item="em"
+            wx:key="*this"
+            data-emoji="{{em}}"
+            bindtap="pickEmoji"
+          >{{em}}</view>
+        </view>
+        <view class="day-row">
+          <view
+            class="day {{form.days[index] ? 'on' : ''}}"
+            wx:for="{{dayLabels}}"
+            wx:key="*this"
+            data-index="{{index}}"
+            bindtap="toggleDay"
+          >{{item}}</view>
+        </view>
+        <view class="edit-actions">
+          <view class="mini wide" bindtap="onCancelEdit">取消</view>
+          <view class="mini wide primary" bindtap="onSaveGroup">保存</view>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <button class="btn btn-ghost add" bindtap="onAddGroup">＋ 新增大项</button>
+
+  <view class="card">
+    <view class="h3">只加今天</view>
+    <view class="tiny">不写进模板，只影响今天的清单</view>
+    <view class="extra">
+      <input class="input grow" value="{{extraTitle}}" placeholder="明天带美术材料" bindinput="onExtraTitle" />
+      <input class="input pts" value="{{extraPoints}}" type="number" placeholder="5" bindinput="onExtraPoints" />
+      <view class="unit tiny">分</view>
+    </view>
+    <button class="btn btn-primary btn-sm" bindtap="onAddExtra">加进今天</button>
+  </view>
+</view>

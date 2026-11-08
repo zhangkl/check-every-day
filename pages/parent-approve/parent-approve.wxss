@@ -1,0 +1,64 @@
+.hd {
+  padding: 16rpx 8rpx 24rpx;
+}
+
+.hd .muted {
+  margin-top: 8rpx;
+}
+
+.sec-title {
+  font-size: 26rpx;
+  color: #9c8f84;
+  padding: 8rpx 12rpx 18rpx;
+}
+
+.rd-hd {
+  display: flex;
+  align-items: center;
+}
+
+.rd-icon {
+  font-size: 56rpx;
+  margin-right: 24rpx;
+  line-height: 1;
+}
+
+.rd-icon.sm {
+  font-size: 40rpx;
+}
+
+.rd-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 24rpx;
+}
+
+.mini {
+  font-size: 26rpx;
+  border-radius: 999rpx;
+  padding: 14rpx 32rpx;
+  margin-left: 16rpx;
+}
+
+.mini.primary {
+  background: #f5a65b;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 8rpx 20rpx rgba(245, 166, 91, 0.3);
+}
+
+.mini.danger {
+  color: #e4736b;
+  background: #fdf0ee;
+}
+
+.his {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 0;
+  border-bottom: 2rpx solid #faf5ee;
+}
+
+.his:last-child {
+  border-bottom: none;
+}

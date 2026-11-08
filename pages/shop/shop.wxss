@@ -1,0 +1,220 @@
+.hd {
+  padding: 16rpx 8rpx 32rpx;
+}
+
+.hd .muted {
+  margin-top: 8rpx;
+}
+
+.bal {
+  text-align: center;
+  padding: 40rpx 28rpx 28rpx;
+}
+
+.bal-num {
+  font-size: 96rpx;
+  font-weight: 700;
+  color: #f5a65b;
+  line-height: 1;
+  letter-spacing: 2rpx;
+}
+
+.bal .muted {
+  margin-top: 12rpx;
+}
+
+.goal {
+  display: flex;
+  align-items: center;
+  margin-top: 32rpx;
+  padding: 22rpx 24rpx;
+  background: #fdf3e8;
+  border-radius: 24rpx;
+  text-align: left;
+}
+
+.goal-pct {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #d9863c;
+}
+
+.sec-title {
+  font-size: 28rpx;
+  color: #9c8f84;
+  padding: 8rpx 12rpx 20rpx;
+}
+
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.gift {
+  width: 48.5%;
+  background: #ffffff;
+  border-radius: 28rpx;
+  padding: 28rpx 24rpx 24rpx;
+  margin-bottom: 22rpx;
+  box-shadow: 0 8rpx 24rpx rgba(200, 170, 140, 0.1);
+  text-align: center;
+}
+
+.gift-icon {
+  font-size: 64rpx;
+  line-height: 1;
+}
+
+.gift-name {
+  margin-top: 18rpx;
+  font-size: 28rpx;
+  color: #4a4038;
+  height: 76rpx;
+  line-height: 38rpx;
+  overflow: hidden;
+}
+
+.gift-cost {
+  font-size: 26rpx;
+  color: #d9863c;
+  font-weight: 600;
+  margin-top: 6rpx;
+}
+
+.gift-bar {
+  height: 8rpx;
+  border-radius: 999rpx;
+  background: #f4ece1;
+  margin: 16rpx 0 12rpx;
+  overflow: hidden;
+}
+
+.gift-bar-in {
+  height: 100%;
+  background: #f5c495;
+  border-radius: 999rpx;
+}
+
+.gift-bar-in.full {
+  background: #8fb98b;
+}
+
+.gift-btn {
+  margin-top: 6rpx;
+  border-radius: 999rpx;
+  padding: 12rpx 0;
+  font-size: 24rpx;
+  font-weight: 600;
+  background: #f6efe6;
+  color: #b0a397;
+}
+
+.gift-btn.on {
+  background: #f5a65b;
+  color: #ffffff;
+  box-shadow: 0 6rpx 16rpx rgba(245, 166, 91, 0.35);
+}
+
+.gift.buyable {
+  border: 3rpx solid rgba(245, 166, 91, 0.55);
+}
+
+.rec-row {
+  display: flex;
+  align-items: center;
+  padding: 18rpx 0;
+  border-bottom: 2rpx solid #faf5ee;
+}
+
+.rec-row:last-child {
+  border-bottom: none;
+}
+
+.rec-icon {
+  font-size: 40rpx;
+  margin-right: 20rpx;
+}
+
+.rec-cost {
+  font-size: 28rpx;
+  color: #9c8f84;
+}
+
+/* 家长端 */
+.bal-row {
+  display: flex;
+  align-items: center;
+}
+
+.mg-row {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 26rpx;
+}
+
+.mg-icon {
+  font-size: 44rpx;
+  margin-right: 22rpx;
+}
+
+.revoke-btn {
+  font-size: 24rpx;
+  color: #f5a65b;
+  border: 2rpx solid #f7d8b8;
+  border-radius: 999rpx;
+  padding: 8rpx 24rpx;
+  flex-shrink: 0;
+}
+
+.add-btn {
+  margin-top: 12rpx;
+}
+
+.tail {
+  text-align: center;
+  padding: 28rpx 40rpx 20rpx;
+  line-height: 1.6;
+}
+
+.boot {
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20rpx;
+}
+
+.boot-emoji {
+  font-size: 72rpx;
+  animation: bootPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes bootPulse {
+  0%, 100% { opacity: 0.45; transform: scale(0.96); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+/* 心愿 */
+.wish-empty {
+  text-align: center;
+  color: #b0a397;
+  padding: 20rpx 0 6rpx;
+}
+
+.wish-add {
+  margin-top: 14rpx;
+  border: 3rpx dashed #eec9a8;
+  color: #d9863c;
+  border-radius: 999rpx;
+  padding: 16rpx 0;
+  text-align: center;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.wish-add:active {
+  background: #fff5e9;
+  transform: scale(0.98);
+}

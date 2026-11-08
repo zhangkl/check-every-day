@@ -1,0 +1,245 @@
+.hd {
+  padding: 16rpx 8rpx 32rpx;
+}
+
+.hd .muted {
+  margin-top: 8rpx;
+}
+
+.title-card {
+  text-align: center;
+  padding: 40rpx 28rpx;
+  background: linear-gradient(160deg, #fff6ec, #ffffff 60%);
+}
+
+.t-label {
+  font-size: 24rpx;
+  color: #b0a397;
+}
+
+.t-name {
+  font-size: 52rpx;
+  font-weight: 700;
+  color: #f5a65b;
+  margin: 12rpx 0 16rpx;
+  letter-spacing: 2rpx;
+}
+
+.nums {
+  display: flex;
+  margin-bottom: 24rpx;
+}
+
+.num-item {
+  flex: 1;
+  background: #ffffff;
+  border-radius: 28rpx;
+  padding: 24rpx 8rpx;
+  margin: 0 8rpx;
+  text-align: center;
+  box-shadow: 0 8rpx 24rpx rgba(200, 170, 140, 0.1);
+}
+
+.num {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #4a4038;
+}
+
+.num-item .tiny {
+  margin-top: 8rpx;
+}
+
+/* 日历 */
+.cal-hd {
+  margin-bottom: 20rpx;
+}
+
+.cal {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.cal-w {
+  width: 14.28%;
+  text-align: center;
+  font-size: 22rpx;
+  color: #b0a397;
+  padding-bottom: 12rpx;
+}
+
+.cal-cell {
+  width: 14.28%;
+  display: flex;
+  justify-content: center;
+  padding: 6rpx 0;
+}
+
+.cal-d {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  color: #b0a397;
+  background: #faf5ee;
+}
+
+.cal-d.lv1 {
+  background: #f9d6ae;
+  color: #a2691f;
+}
+
+.cal-d.lv2 {
+  background: #f5a65b;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.cal-d.today {
+  box-shadow: 0 0 0 3rpx #ee8ba0 inset;
+}
+
+/* 护身符 */
+.coupon {
+  display: flex;
+  align-items: center;
+}
+
+.coupon .grow .tiny {
+  margin-top: 8rpx;
+  display: block;
+}
+
+/* 家长报表 */
+.big-pct {
+  font-size: 44rpx;
+  font-weight: 700;
+  color: #f5a65b;
+}
+
+.bars {
+  display: flex;
+  align-items: flex-end;
+  height: 220rpx;
+  margin: 26rpx 0 12rpx;
+}
+
+.bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+
+.bar-wrap {
+  flex: 1;
+  width: 36rpx;
+  background: #f6efe6;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.bar-fill {
+  width: 100%;
+  background: linear-gradient(180deg, #f7bd7e, #f5a65b);
+  border-radius: 999rpx;
+  min-height: 4rpx;
+  transition: height 0.3s ease;
+}
+
+.bar-label {
+  margin-top: 12rpx;
+  font-size: 22rpx;
+  color: #b0a397;
+}
+
+.center {
+  text-align: center;
+}
+
+.sub {
+  margin: 8rpx 0 20rpx;
+  line-height: 1.6;
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  padding: 18rpx 0;
+  border-bottom: 2rpx solid #faf5ee;
+}
+
+.stat:last-child {
+  border-bottom: none;
+}
+
+.stat-bar {
+  width: 160rpx;
+  height: 12rpx;
+  background: #f6efe6;
+  border-radius: 999rpx;
+  overflow: hidden;
+  margin: 0 20rpx;
+}
+
+.stat-bar-in {
+  height: 100%;
+  background: #8fb98b;
+  border-radius: 999rpx;
+}
+
+.stat-bar-in.low {
+  background: #e4736b;
+}
+
+.stat-pct {
+  width: 84rpx;
+  text-align: right;
+  font-size: 26rpx;
+  color: #7d6f63;
+}
+
+.io-row {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 0;
+}
+
+.io-num {
+  font-size: 30rpx;
+  color: #7d6f63;
+}
+
+.io-num.up {
+  color: #6f9a6a;
+}
+
+.io-num.strong {
+  font-weight: 700;
+  color: #4a4038;
+}
+
+.boot {
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20rpx;
+}
+
+.boot-emoji {
+  font-size: 72rpx;
+  animation: bootPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes bootPulse {
+  0%, 100% { opacity: 0.45; transform: scale(0.96); }
+  50% { opacity: 1; transform: scale(1); }
+}

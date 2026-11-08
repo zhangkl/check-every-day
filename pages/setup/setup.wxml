@@ -1,0 +1,128 @@
+<view class="page-plain">
+  <view class="brand compact">
+    <view class="logo">✅</view>
+    <view class="title-row">
+      <text class="h1">Check EveryDay</text>
+      <text class="brand-tag">学生自我管理工具</text>
+    </view>
+  </view>
+
+  <block wx:if="{{local}}">
+    <view class="card">
+      <view class="h3">先在本地用起来</view>
+      <view class="field">
+        <view class="label">孩子的昵称</view>
+        <input
+          class="input"
+          value="{{childName}}"
+          placeholder="比如 朵朵"
+          placeholder-class="ph"
+          maxlength="10"
+          bindinput="onChild"
+        />
+      </view>
+      <view class="field">
+        <view class="label">家庭名称（可选）</view>
+        <input
+          class="input"
+          value="{{familyName}}"
+          placeholder="比如 朵朵家"
+          placeholder-class="ph"
+          maxlength="12"
+          bindinput="onFamily"
+        />
+      </view>
+      <view class="tiny note">不用登录，数据只存这台手机。会用五年级的标准清单先配好任务，在家长端随时能改。</view>
+    </view>
+
+    <view class="err" wx:if="{{error}}">{{error}}</view>
+
+    <button
+      class="btn btn-primary"
+      bindtap="onLocalStart"
+      loading="{{submitting}}"
+      disabled="{{submitting}}"
+    >开始使用</button>
+
+    <view class="foot tiny">以后想多设备同步，在「我的」里登录就能把这些记录带到云端。</view>
+  </block>
+
+  <block wx:else>
+    <view class="card done-card" wx:if="{{createdCode}}">
+      <view class="h3">家庭建好了</view>
+      <view class="tiny note">把这个邀请码告诉孩子，她在自己的手机上输入就能加入，之后两边的打卡和积分会自动同步。</view>
+      <view class="code-box" bindtap="copyCode">{{createdCode}}</view>
+      <view class="tiny center">点一下复制</view>
+      <button class="btn btn-primary wide" bindtap="enterApp">开始使用</button>
+    </view>
+
+    <block wx:else>
+      <view class="tabs">
+        <view class="tab {{mode === 'create' ? 'on' : ''}}" bindtap="toCreate">我来创建家庭</view>
+        <view class="tab {{mode === 'join' ? 'on' : ''}}" bindtap="toJoin">我加入家庭</view>
+      </view>
+
+      <view class="card" wx:if="{{mode === 'create'}}">
+        <view class="h3">建一个自己的家</view>
+        <view class="field">
+          <view class="label">孩子的昵称</view>
+          <input
+            class="input"
+            value="{{childName}}"
+            placeholder="比如 朵朵"
+            placeholder-class="ph"
+            maxlength="10"
+            bindinput="onChild"
+          />
+        </view>
+        <view class="field">
+          <view class="label">家庭名称</view>
+          <input
+            class="input"
+            value="{{familyName}}"
+            placeholder="比如 朵朵家"
+            placeholder-class="ph"
+            maxlength="12"
+            bindinput="onFamily"
+          />
+        </view>
+        <view class="tiny note">会用五年级的标准清单先配好任务，之后在家长端随时能改。</view>
+      </view>
+
+      <view class="card" wx:else>
+        <view class="h3">输入家里的邀请码</view>
+        <view class="field">
+          <view class="label">6 位邀请码</view>
+          <input
+            class="input code"
+            value="{{joinCode}}"
+            placeholder="比如 K7M2QP"
+            placeholder-class="ph"
+            maxlength="6"
+            bindinput="onJoinCode"
+          />
+        </view>
+        <view class="tiny note">邀请码在爸爸妈妈的手机上，「我的」页面里可以看到。</view>
+      </view>
+
+      <view class="err" wx:if="{{error}}">{{error}}</view>
+
+      <button
+        wx:if="{{mode === 'create'}}"
+        class="btn btn-primary"
+        bindtap="onCreate"
+        loading="{{submitting}}"
+        disabled="{{submitting}}"
+      >创建家庭</button>
+      <button
+        wx:else
+        class="btn btn-primary"
+        bindtap="onJoin"
+        loading="{{submitting}}"
+        disabled="{{submitting}}"
+      >加入家庭</button>
+    </block>
+
+    <view class="foot tiny">任务清单、打卡记录和积分都保存在云端，换手机也不会丢。</view>
+  </block>
+</view>
