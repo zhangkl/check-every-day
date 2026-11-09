@@ -14,9 +14,13 @@ function repeatLabel(days) {
 Page({
   data: {
     groups: [],
+    viewMode: 'all',
+    modeCount: { all: 0, week: 0, weekend: 0 },
     openKey: '',
     editingKey: '',
     form: { title: '', icon: '', days: [] },
+    editingChildId: '',
+    childDays: [],
     emojis: EMOJIS,
     dayLabels: DAY_LABELS,
     extraTitle: '',
@@ -36,16 +40,55 @@ Page({
 
   refresh() {
     if (!store.isSetup()) return
-    const groups = store.listTaskGroups().map(function (g) {
+    const mode = this.data.viewMode
+    const all = store.listTaskGroups().map(function (g) {
       const days = [1, 2, 3, 4, 5, 6, 7].map(function (d) {
         return g.repeatDays.indexOf(d) >= 0
       })
+      const onWeek = [1, 2, 3, 4, 5].some(function (d) { return g.repeatDays.indexOf(d) >= 0 })
+      const onWeekend = [6, 7].some(function (d) { return g.repeatDays.indexOf(d) >= 0 })
+      const children = g.children.map(function (c) {
+        return Object.assign({}, c, {
+          days: [1, 2, 3, 4, 5, 6, 7].map(function (d) { return c.repeatDays.indexOf(d) >= 0 }),
+          dayLabel: repeatLabel(c.repeatDays)
+        })
+      })
       return Object.assign({}, g, {
         days: days,
-        repeatLabel: repeatLabel(g.repeatDays)
+        repeatLabel: repeatLabel(g.repeatDays),
+        onWeek: onWeek,
+        onWeekend: onWeekend,
+        children: children
       })
     })
-    this.setData({ groups })
+    const counts = {
+      all: all.length,
+      week: all.filter(function (g) { return g.onWeek }).length,
+      weekend: all.filter(function (g) { return g.onWeekend }).length
+    }
+    const groups = all.filter(function (g) {
+      if (mode === 'week') return g.onWeek
+      if (mode === 'weekend') return g.onWeekend
+      return true
+    })
+    this.setData({ groups: groups, modeCount: counts })
+  },
+
+  switchMode(e) {
+    const mode = e.currentTarget.dataset.mode
+    if (mode === this.data.viewMode) return
+    this.setData({ viewMode: mode, openKey: '', editingKey: '' })
+    this.refresh()
+  },
+
+  // 编辑表单里的一键预设：每天 / 仅周中 / 仅周末
+  pickPreset(e) {
+    const preset = e.currentTarget.dataset.preset
+    let days
+    if (preset === 'week') days = [true, true, true, true, true, false, false]
+    else if (preset === 'weekend') days = [false, false, false, false, false, true, true]
+    else days = [true, true, true, true, true, true, true]
+    this.setData({ 'form.days': days })
   },
 
   fail(res) {
@@ -188,13 +231,11 @@ Page({
   onEditChild(e) {
     const id = e.currentTarget.dataset.id
     const gKey = e.currentTarget.dataset.key
-    const g = this.data.groups.filter(function (x) {
-      return x.groupKey === gKey
-    })[0]
+    const g = this.data.groups.filter(function (x) { return x.groupKey === gKey })[0]
     const child = g ? g.children.filter(function (c) { return c.id === id })[0] : null
     if (!child) return
     wx.showActionSheet({
-      itemList: ['改名称', '改分值', '删除这一项'],
+      itemList: ['改名称', '改分值', '改出现日期', '删除这一项'],
       success: (r) => {
         if (r.tapIndex === 0) {
           wx.showModal({
@@ -225,6 +266,11 @@ Page({
             }
           })
         } else if (r.tapIndex === 2) {
+          this.setData({
+            editingChildId: id,
+            childDays: child.days.slice()
+          })
+        } else if (r.tapIndex === 3) {
           store.removeChild(id).then((res) => {
             this.refresh()
             this.fail(res)
@@ -232,6 +278,44 @@ Page({
         }
       }
     })
+  },
+
+  toggleChildDay(e) {
+    const idx = Number(e.currentTarget.dataset.index)
+    const days = this.data.childDays.slice()
+    days[idx] = !days[idx]
+    this.setData({ childDays: days })
+  },
+
+  pickChildPreset(e) {
+    const preset = e.currentTarget.dataset.preset
+    let days
+    if (preset === 'week') days = [true, true, true, true, true, false, false]
+    else if (preset === 'weekend') days = [false, false, false, false, false, true, true]
+    else days = [true, true, true, true, true, true, true]
+    this.setData({ childDays: days })
+  },
+
+  async onSaveChildDays() {
+    const id = this.data.editingChildId
+    if (!id) return
+    const repeatDays = []
+    this.data.childDays.forEach(function (on, i) {
+      if (on) repeatDays.push(i + 1)
+    })
+    if (repeatDays.length === 0) {
+      wx.showToast({ title: '至少选一天', icon: 'none' })
+      return
+    }
+    const res = await store.updateChild(id, { repeatDays: repeatDays })
+    if (this.fail(res)) return
+    this.setData({ editingChildId: '' })
+    this.refresh()
+    wx.showToast({ title: '已保存，从新的一天生效', icon: 'none' })
+  },
+
+  onCancelChildDays() {
+    this.setData({ editingChildId: '' })
   },
 
   onDeleteGroup(e) {

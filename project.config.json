@@ -1,5 +1,5 @@
 {
-  "description": "Check EveryDay · 小学生每日学习自查与积分激励",
+  "description": "PDCA 好习惯 · 小学生每日学习自查与积分激励",
   "packOptions": {
     "ignore": [
       {
@@ -34,7 +34,7 @@
     }
   },
   "compileType": "miniprogram",
-  "appid": "wxa8bb7f81146c2316",
+  "appid": "wx1bf2f69004efcf31",
   "projectname": "check-every-day",
   "miniprogramRoot": "./",
   "simulatorPluginLibVersion": {},

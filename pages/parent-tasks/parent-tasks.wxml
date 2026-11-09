@@ -4,6 +4,13 @@
     <view class="muted">改完之后，从明天开始生效</view>
   </view>
 
+  <view class="mode-tabs">
+    <view class="mode-tab {{viewMode === 'all' ? 'on' : ''}}" data-mode="all" bindtap="switchMode">全部 {{modeCount.all}}</view>
+    <view class="mode-tab {{viewMode === 'week' ? 'on' : ''}}" data-mode="week" bindtap="switchMode">周中·一至五 {{modeCount.week}}</view>
+    <view class="mode-tab {{viewMode === 'weekend' ? 'on' : ''}}" data-mode="weekend" bindtap="switchMode">周末·六日 {{modeCount.weekend}}</view>
+  </view>
+  <view class="mode-hint tiny" wx:if="{{viewMode !== 'all'}}">{{viewMode === 'week' ? '这些大项在周一到周五出现' : '这些大项在周六周日出现'}}</view>
+
   <view class="card gt" wx:for="{{groups}}" wx:key="groupKey">
     <block wx:if="{{editingKey !== item.groupKey}}">
       <view class="gt-hd" data-key="{{item.groupKey}}" bindtap="toggleOpen">
@@ -16,19 +23,44 @@
       </view>
 
       <view class="gt-body" wx:if="{{openKey === item.groupKey}}">
-        <view
-          class="sub"
-          wx:for="{{item.children}}"
-          wx:for-item="c"
-          wx:key="id"
-          data-id="{{c.id}}"
-          data-key="{{item.groupKey}}"
-          bindtap="onEditChild"
-        >
-          <view class="grow body">{{c.title}}</view>
-          <view class="tiny">{{c.points}} 分</view>
-          <view class="chev-sm">›</view>
-        </view>
+        <block wx:for="{{item.children}}" wx:for-item="c" wx:key="id">
+          <view
+            class="sub"
+            wx:if="{{editingChildId !== c.id}}"
+            data-id="{{c.id}}"
+            data-key="{{item.groupKey}}"
+            bindtap="onEditChild"
+          >
+            <view class="grow body">
+              {{c.title}}
+              <text class="off" wx:if="{{c.dayLabel !== '每天'}}">{{c.dayLabel}}</text>
+            </view>
+            <view class="tiny">{{c.points}} 分</view>
+            <view class="chev-sm">›</view>
+          </view>
+          <view class="child-edit" wx:else>
+            <view class="h3">「{{c.title}}」哪几天出现</view>
+            <view class="preset-row">
+              <view class="preset" data-preset="all" bindtap="pickChildPreset">每天</view>
+              <view class="preset" data-preset="week" bindtap="pickChildPreset">仅周中</view>
+              <view class="preset" data-preset="weekend" bindtap="pickChildPreset">仅周末</view>
+            </view>
+            <view class="day-row">
+              <view
+                class="day {{childDays[index] ? 'on' : ''}}"
+                wx:for="{{dayLabels}}"
+                wx:for-item="dl"
+                wx:key="*this"
+                data-index="{{index}}"
+                bindtap="toggleChildDay"
+              >{{dl}}</view>
+            </view>
+            <view class="edit-actions">
+              <view class="mini wide" bindtap="onCancelChildDays">取消</view>
+              <view class="mini wide primary" bindtap="onSaveChildDays">保存</view>
+            </view>
+          </view>
+        </block>
         <view class="empty-sm" wx:if="{{item.children.length === 0}}">还没有子项，先加一项</view>
 
         <view class="gt-actions">
@@ -53,6 +85,11 @@
             data-emoji="{{em}}"
             bindtap="pickEmoji"
           >{{em}}</view>
+        </view>
+        <view class="preset-row">
+          <view class="preset" data-preset="all" bindtap="pickPreset">每天</view>
+          <view class="preset" data-preset="week" bindtap="pickPreset">仅周中</view>
+          <view class="preset" data-preset="weekend" bindtap="pickPreset">仅周末</view>
         </view>
         <view class="day-row">
           <view

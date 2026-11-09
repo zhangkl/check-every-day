@@ -46,31 +46,67 @@
 
     <view class="items">
       <view
-        class="item {{it.done ? 'done' : ''}}"
+        class="item {{it.done ? 'done' : ''}} {{it.status === 'pending' ? 'pending' : ''}} {{it.status === 'del-pending' ? 'delreq' : ''}}"
         wx:for="{{item.items}}"
         wx:for-item="it"
         wx:key="id"
         data-id="{{it.id}}"
+        data-title="{{it.title}}"
         bindtap="onToggle"
+        bindlongpress="onLongPress"
       >
         <view class="box">{{it.done ? '✓' : ''}}</view>
         <view class="grow">
-          <view class="it-title">{{it.title}}</view>
+          <view class="it-title">{{it.title}}<text class="pending-tag" wx:if="{{it.status === 'pending'}}">待家长同意</text><text class="pending-tag del" wx:elif="{{it.status === 'del-pending'}}">{{role === 'parent' ? '孩子申请删除' : '待同意删除'}}</text></view>
           <view class="tiny" wx:if="{{role === 'parent' && it.done}}">{{it.time}} 勾选</view>
-          <view class="voice-row" wx:if="{{it.voice}}">
+          <view class="voice-row" wx:if="{{it.voices && it.voices.length}}">
             <view
-              class="voice-chip {{playingId === it.id ? 'playing' : ''}}"
-              data-id="{{it.id}}"
-              data-path="{{it.voice.path}}"
-              catchtap="onVoicePlay"
+              class="voice-line"
+              wx:for="{{it.voices}}"
+              wx:for-item="v"
+              wx:for-index="vi"
+              wx:key="id"
             >
-              <text class="vc-icon">{{playingId === it.id ? '🔊' : '▶'}}</text>
-              <text>{{it.voice.duration}}″ 语音小结</text>
+              <view
+                class="voice-chip {{playingId === v.id ? 'playing' : ''}}"
+                data-id="{{v.id}}"
+                data-item="{{it.id}}"
+                data-path="{{v.path}}"
+                catchtap="onVoicePlay"
+                catchlongpress="onVoiceDelete"
+              >
+                <text class="vc-icon">{{playingId === v.id ? '🔊' : '▶'}}</text>
+                <text>{{v.duration}}″</text>
+              </view>
+              <view
+                class="like-btn {{v.liked ? 'on' : ''}} {{likePopId === v.id ? 'pop' : ''}}"
+                wx:if="{{role === 'parent'}}"
+                data-item="{{it.id}}"
+                data-voice="{{v.id}}"
+                catchtap="onVoiceLike"
+              >{{v.liked ? '👍 1' : '👍'}}</view>
+              <view class="tiny vc-hint" wx:if="{{role === 'parent' && vi === 0}}">点开听听她怎么说</view>
+              <view class="tiny vc-transcribing" wx:if="{{transcribingId === v.id}}">正在转文字…</view>
+              <view
+                class="text-btn"
+                wx:if="{{v.text}}"
+                data-item="{{it.id}}"
+                data-voice="{{v.id}}"
+                catchtap="onVoiceShowText"
+              >📝</view>
+              <view
+                class="voice-trans-btn"
+                wx:if="{{!v.text && transcribingId !== v.id}}"
+                data-item="{{it.id}}"
+                data-voice="{{v.id}}"
+                catchtap="onVoiceTranscribe"
+              >转文字</view>
             </view>
-            <view class="tiny vc-hint" wx:if="{{role === 'parent'}}">点开听听她怎么说</view>
+            <view class="tiny rec-tip" wx:if="{{recordingId === it.id}}">正在说…再点一下结束，说完自动转文字</view>
+            <view class="tiny rec-tip" wx:elif="{{uploadingId === it.id}}">正在保存…</view>
+            <view class="tiny rec-tip" wx:elif="{{transcribingId && (!it.voices || !it.voices.length)}}">正在转文字…</view>
           </view>
-          <view class="tiny rec-tip" wx:if="{{recordingId === it.id}}">正在说…再点一下结束（最长 3 分钟）</view>
-          <view class="tiny rec-tip" wx:elif="{{uploadingId === it.id}}">正在保存…</view>
+          <view class="tiny rec-tip" wx:if="{{!it.voices || !it.voices.length}}">{{recordingId === it.id ? '正在说…再点一下结束，说完自动转文字' : (uploadingId === it.id ? '正在保存…' : '')}}</view>
         </view>
         <view
           wx:if="{{role === 'child'}}"
@@ -78,21 +114,16 @@
           data-id="{{it.id}}"
           catchtap="onMic"
         >{{recordingId === it.id ? '■' : '🎙'}}</view>
-        <view
-          wx:if="{{role === 'parent' && it.done}}"
-          class="revoke-btn"
-          data-id="{{it.id}}"
-          data-title="{{it.title}}"
-          catchtap="onRevoke"
-        >撤销</view>
         <view class="it-points {{it.done ? 'on' : ''}}" wx:if="{{!(role === 'parent' && it.done)}}">{{it.points}} 分</view>
         <view wx:if="{{floatId === it.id}}" class="float">{{floatText}}</view>
       </view>
     </view>
   </view>
 
-  <view class="tail tiny" wx:if="{{role === 'child'}}">每项旁的 🎙 可以说说今天学得怎么样，爸爸妈妈都听得到。</view>
-  <view class="tail tiny" wx:else>改了模板从明天生效；只影响今天请用「临时加项」。</view>
+  <view class="add-extra" wx:if="{{role === 'child'}}" bindtap="onChildAdd">＋ 自己加一项（家长同意后生效）</view>
+
+  <view class="tail tiny" wx:if="{{role === 'child'}}">🎙 说完自动转文字；长按语音可删掉重说；长按未完成项可申请删除。</view>
+  <view class="tail tiny" wx:else>点 ✓ 可同意加项或删除；长按可改分值、拒绝、删除或撤销；点 👍 点赞 +1 分，再点一下取消。</view>
 
   <view class="ft">
     <view class="hd-date">{{ov.pretty}}</view>
@@ -109,4 +140,43 @@
   <view class="cel-emoji">🎉</view>
   <view class="cel-title">今天全部完成</view>
   <view class="cel-sub">今天的你，比昨天靠谱一点点。</view>
+</view>
+
+<view class="mask" wx:if="{{confirm}}" catchtap="onConfirmCancel">
+  <view class="sheet" catchtap="noop">
+    <view class="sheet-title">{{confirm.title}}</view>
+    <view class="sheet-content">{{confirm.content}}</view>
+    <view class="sheet-btns">
+      <view class="sheet-btn" bindtap="onConfirmCancel">先不了</view>
+      <view class="sheet-btn danger" bindtap="onConfirmOk">{{confirm.confirmText}}</view>
+    </view>
+  </view>
+</view>
+
+<view class="mask" wx:if="{{childForm}}" catchtap="onChildAddCancel">
+  <view class="sheet" catchtap="noop">
+    <view class="sheet-title">自己加一项</view>
+    <input class="sheet-input" placeholder="比如 额外练一页口算" value="{{childForm.title}}" maxlength="20" bindinput="onChildTitle" />
+    <view class="sheet-row">
+      <view class="tiny">分值（家长可以改）</view>
+      <input class="sheet-input pts" type="number" placeholder="5" value="{{childForm.points}}" bindinput="onChildPoints" />
+    </view>
+    <view class="sheet-content small">发出后要等家长同意，同意了才能打卡得分。</view>
+    <view class="sheet-btns">
+      <view class="sheet-btn" bindtap="onChildAddCancel">取消</view>
+      <view class="sheet-btn primary" bindtap="onChildAddOk">加上去</view>
+    </view>
+  </view>
+</view>
+
+<view class="mask" wx:if="{{textViewer}}" catchtap="onTextClose">
+  <view class="sheet text-sheet" catchtap="noop">
+    <view class="sheet-title">{{textViewer.title}}</view>
+    <scroll-view scroll-y class="text-scroll">
+      <view class="text-body">{{textViewer.text}}</view>
+    </scroll-view>
+    <view class="sheet-btns">
+      <view class="sheet-btn primary" bindtap="onTextClose">关闭</view>
+    </view>
+  </view>
 </view>

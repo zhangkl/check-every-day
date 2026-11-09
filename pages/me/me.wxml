@@ -86,7 +86,7 @@
     <view class="danger" bindtap="onReset">{{isLocal ? '重置本地数据（清空后继续用）' : '清空所有数据'}}</view>
   </block>
 
-  <view class="ver tiny">Check EveryDay · v1.2 · {{isLocal ? '本地模式 · 数据只存这台手机' : '已开启云端同步'}}</view>
+  <view class="ver tiny">PDCA 好习惯 · v1.2 · {{isLocal ? '本地模式 · 数据只存这台手机' : '已开启云端同步'}}</view>
 </view>
 
 <view class="boot" wx:else>

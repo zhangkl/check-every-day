@@ -1,9 +1,58 @@
 .hd {
-  padding: 16rpx 8rpx 32rpx;
+  padding: 16rpx 8rpx 24rpx;
 }
 
 .hd .muted {
   margin-top: 8rpx;
+}
+
+/* 周中 / 周末 视图切换 */
+.mode-tabs {
+  display: flex;
+  background: #ffffff;
+  border-radius: 999rpx;
+  padding: 8rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 8rpx 24rpx rgba(200, 170, 140, 0.12);
+}
+
+.mode-tab {
+  flex: 1;
+  text-align: center;
+  font-size: 25rpx;
+  color: #9c8f84;
+  padding: 14rpx 0;
+  border-radius: 999rpx;
+}
+
+.mode-tab.on {
+  background: #f5a65b;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.mode-hint {
+  padding: 0 8rpx 20rpx;
+  color: #b0a397;
+}
+
+/* 编辑表单：每天 / 仅周中 / 仅周末 预设 */
+.preset-row {
+  display: flex;
+  margin-top: 24rpx;
+}
+
+.preset {
+  font-size: 25rpx;
+  color: #7d6f63;
+  background: #f8f2ea;
+  border-radius: 999rpx;
+  padding: 10rpx 26rpx;
+  margin-right: 16rpx;
+}
+
+.preset:active {
+  transform: scale(0.95);
 }
 
 .gt {
@@ -48,6 +97,19 @@
   align-items: center;
   padding: 22rpx 0;
   border-bottom: 2rpx solid #faf5ee;
+}
+
+/* 子项日期编辑器 */
+.child-edit {
+  padding: 20rpx 0 8rpx;
+  border-bottom: 2rpx solid #faf5ee;
+}
+
+.child-edit .h3 {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #4a4038;
+  margin-bottom: 6rpx;
 }
 
 .empty-sm {

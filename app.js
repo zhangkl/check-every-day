@@ -2,7 +2,7 @@ const store = require('./utils/store')
 
 App({
   globalData: {
-    appName: 'Check EveryDay',
+    appName: 'PDCA 好习惯',
     role: 'child'
   },
 

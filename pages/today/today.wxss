@@ -209,13 +209,200 @@
   font-weight: 600;
 }
 
-.revoke-btn {
-  font-size: 24rpx;
-  color: #e4736b;
-  border: 2rpx solid #f3d3cf;
+/* 学生发起的临时项：待家长同意 */
+.item.pending .box {
+  border-color: #f5c98f;
+  border-style: dashed;
+}
+
+.item.pending .it-title {
+  color: #7d6f63;
+}
+
+.item.delreq .box {
+  border-color: #c9bcae;
+  border-style: dashed;
+}
+
+.item.delreq .it-title {
+  color: #a79a8d;
+}
+
+.pending-tag.del {
+  color: #8a8378;
+  background: #f1ece5;
+}
+
+.text-btn {
+  align-self: flex-start;
+  font-size: 26rpx;
+  line-height: 1;
+  border: 2rpx solid #e8d9c3;
+  background: #fffdf9;
   border-radius: 999rpx;
-  padding: 6rpx 20rpx;
+  padding: 8rpx 14rpx;
+}
+
+.text-btn:active {
+  opacity: 0.6;
+}
+
+.vc-transcribing {
+  margin-top: 8rpx;
+  color: #b08b5e;
+}
+
+.voice-trans-btn {
+  margin-top: 8rpx;
+  align-self: flex-start;
+  font-size: 22rpx;
+  color: #b08b5e;
+  border: 2rpx solid #e8d9c3;
+  border-radius: 999rpx;
+  padding: 4rpx 16rpx;
+}
+
+.pending-tag {
+  display: inline-block;
+  margin-left: 12rpx;
+  font-size: 20rpx;
+  font-weight: 600;
+  color: #d9863c;
+  background: #fff5e9;
+  border-radius: 999rpx;
+  padding: 4rpx 14rpx;
+  vertical-align: middle;
+}
+
+/* 学生「自己加一项」入口 */
+.add-extra {
+  text-align: center;
+  font-size: 26rpx;
+  color: #c0a27e;
+  padding: 18rpx 0 6rpx;
+}
+
+.add-extra:active {
+  opacity: 0.6;
+}
+
+/* 家长长按已完成项即可撤销，不再放常驻按钮 */
+
+/* 自绘确认弹窗（预览环境 wx.showModal 不可用） */
+.mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(60, 45, 35, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: 60rpx;
+}
+
+.sheet {
+  width: 100%;
+  background: #fffdf8;
+  border-radius: 32rpx;
+  padding: 44rpx 40rpx 36rpx;
+  box-shadow: 0 18rpx 60rpx rgba(90, 60, 30, 0.18);
+}
+
+.sheet-title {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: #4a3b2f;
+  text-align: center;
+  margin-bottom: 20rpx;
+}
+
+.sheet-content {
+  font-size: 28rpx;
+  color: #8a7a6d;
+  line-height: 1.6;
+  margin-bottom: 36rpx;
+}
+
+.sheet-btns {
+  display: flex;
+  gap: 20rpx;
+}
+
+.sheet-btn {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx 0;
+  border-radius: 999rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  background: #f6ecdf;
+  color: #6d5c4e;
+}
+
+.sheet-btn:active {
+  transform: scale(0.97);
+}
+
+.sheet-btn.danger {
+  background: #e4736b;
+  color: #ffffff;
+}
+
+.sheet-btn.primary {
+  background: #f5a65b;
+  color: #ffffff;
+}
+
+/* 学生加项弹窗里的输入 */
+.sheet-input {
+  height: 84rpx;
+  background: #fbf6ef;
+  border-radius: 22rpx;
+  padding: 0 24rpx;
+  font-size: 30rpx;
+  color: #4a4038;
+  margin-bottom: 20rpx;
+}
+
+.sheet-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
+}
+
+.sheet-row .tiny {
   flex-shrink: 0;
+}
+
+.sheet-input.pts {
+  width: 160rpx;
+  margin-bottom: 0;
+  text-align: center;
+}
+
+.sheet-content.small {
+  font-size: 24rpx;
+  margin-bottom: 30rpx;
+}
+
+/* 语音文字查看弹窗 */
+.text-sheet {
+  width: 620rpx;
+  max-width: 86vw;
+}
+
+.text-scroll {
+  max-height: 52vh;
+  margin: 6rpx 0 10rpx;
+}
+
+.text-body {
+  font-size: 30rpx;
+  line-height: 1.8;
+  color: #5d5147;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
 .float {
@@ -395,6 +582,39 @@
 .rec-tip {
   margin-top: 8rpx;
   color: #e4736b;
+}
+
+/* 多条语音：每行一段，家长可点赞 */
+.voice-line {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  margin-top: 6rpx;
+}
+
+.like-btn {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #d4708a;
+  background: #fdeef2;
+  border-radius: 999rpx;
+  padding: 8rpx 20rpx;
+  flex-shrink: 0;
+  transition: transform 0.18s ease;
+}
+
+.like-btn.pop {
+  transform: scale(1.18);
+}
+
+/* 已点过赞：实心高亮，一眼看出当前状态 */
+.like-btn.on {
+  background: #d4708a;
+  color: #ffffff;
+}
+
+.like-btn:active {
+  transform: scale(0.94);
 }
 
 /* 右上角「我的」入口 */

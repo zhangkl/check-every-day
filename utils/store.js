@@ -77,7 +77,7 @@ const TITLES = [
   { at: 300, name: '坚持者' },
   { at: 800, name: '自律小达人' },
   { at: 2000, name: '时间管理师' },
-  { at: 5000, name: 'Check EveryDay 大师' }
+  { at: 5000, name: 'PDCA 好习惯大师' }
 ]
 
 const ALL_DAYS = [1, 2, 3, 4, 5, 6, 7]
@@ -239,6 +239,49 @@ function normalizeDoc(raw) {
   out.seq = Number(s.seq) || 1000
   out.setupDone = true
   out.v = 2
+  // 老数据迁移：item.voice 单条 → item.voices[] 多条（每条补上 id 供点赞定位）
+  // 顺带修历史 bug：录音上限 3 分钟，存出 200″ 以上的只可能是
+  // 旧版单位判断把「毫秒」当「秒」存了 → 换算回秒
+  function fixVoiceDuration(d) {
+    const n = Number(d) || 0
+    return n > 200 ? Math.max(1, Math.round(n / 1000)) : n
+  }
+  Object.keys(out.sheets).forEach(function (k) {
+    const sheet = out.sheets[k]
+    const items = sheet && Array.isArray(sheet.items) ? sheet.items : []
+    items.forEach(function (it) {
+      if (!Array.isArray(it.voices)) {
+        if (it.voice && typeof it.voice === 'object') {
+          out.seq += 1
+          it.voices = [
+            {
+              id: 'x' + out.seq,
+              path: it.voice.path,
+              duration: fixVoiceDuration(it.voice.duration),
+              at: Number(it.voice.at) || 0,
+              likes: 0,
+              liked: false
+            }
+          ]
+        } else {
+          it.voices = []
+        }
+        delete it.voice
+      } else {
+        it.voices.forEach(function (v) {
+          v.duration = fixVoiceDuration(v.duration)
+          // 点赞规则改为「每条最多一个赞，再点取消」：
+          // 老数据里点赞数大于 0 的一律视为已点过一个赞，赞数封顶为 1
+          if (v.liked === undefined) {
+            v.liked = (Number(v.likes) || 0) > 0
+          }
+          v.likes = v.liked ? 1 : 0
+        })
+      }
+      // 学生加的临时项带待同意状态；老数据一律视为已同意
+      if (!it.status) it.status = 'approved'
+    })
+  })
   return out
 }
 
@@ -801,7 +844,9 @@ function groupsForDay(s, day) {
         .filter(function (t) {
           if (t.level !== 2 || t.groupKey !== g.groupKey || !t.active) return false
           if (t.extraDate) return t.extraDate === day
-          return true
+          // 老数据没有 repeatDays 视为每天
+          const rd = Array.isArray(t.repeatDays) && t.repeatDays.length ? t.repeatDays : ALL_DAYS
+          return rd.indexOf(wd) >= 0
         })
         .sort(function (a, b) {
           return a.sort - b.sort
@@ -832,7 +877,8 @@ function ensureSheet(day) {
         sort: ci * 10,
         done: false,
         doneAt: null,
-        revokedAt: null
+        revokedAt: null,
+        status: 'approved'
       })
     })
   })
@@ -858,12 +904,16 @@ function groupItems(items) {
         items: [],
         doneCount: 0,
         pointsTotal: 0,
-        pointsEarned: 0
+        pointsEarned: 0,
+        activeTotal: 0
       }
       order.push(it.groupKey)
     }
     const g = map[it.groupKey]
     g.items.push(it)
+    // 待同意的项只展示，不计入进度和分值
+    if (it.status === 'pending') return
+    g.activeTotal += 1
     g.pointsTotal += it.points
     if (it.done) {
       g.doneCount += 1
@@ -878,7 +928,7 @@ function groupItems(items) {
     g.items.sort(function (a, b) {
       return a.sort - b.sort
     })
-    g.total = g.items.length
+    g.total = g.activeTotal
     g.allDone = g.doneCount === g.total && g.total > 0
     g.percent = g.total ? Math.round((g.doneCount / g.total) * 100) : 0
     return g
@@ -939,7 +989,8 @@ function isComplete(s, day) {
     })
   }
   const allDone = sheet.items.every(function (it) {
-    return it.done
+    // 待同意的临时项不算未完成，不挡满勤
+    return it.done || it.status === 'pending'
   })
   if (allDone) return true
   return s.coupons.some(function (c) {
@@ -999,6 +1050,8 @@ function toggleItem(day, itemId) {
       return it.id === itemId
     })[0]
     if (!item) return { ok: false, error: '找不到这一项' }
+    if (item.status === 'pending') return { ok: false, error: '这一项要等家长同意' }
+    if (item.status === 'del-pending') return { ok: false, error: '这一项在等家长处理删除申请' }
     if (item.done) {
       item.done = false
       item.doneAt = null
@@ -1040,8 +1093,8 @@ function adjustPoints(amount, note) {
   })
 }
 
-// 语音小结挂在当天清单项上；换新录音时把旧文件的存储路径带回去，由调用方删
-function setItemVoice(day, itemId, voice) {
+// 追加一条语音小结（同一项可有多条）；由调用方先把文件传到存储
+function appendItemVoice(day, itemId, voice) {
   return mutate(function (s) {
     const sheet = s.sheets[day]
     if (!sheet) return { ok: false, error: '这一天没有清单' }
@@ -1049,13 +1102,85 @@ function setItemVoice(day, itemId, voice) {
       return it.id === itemId
     })[0]
     if (!item) return { ok: false, error: '找不到这一项' }
-    const oldPath = item.voice && item.voice.path ? item.voice.path : ''
-    item.voice = {
+    if (!Array.isArray(item.voices)) item.voices = []
+    const v = {
+      id: newId(s),
       path: voice.path,
       duration: Number(voice.duration) || 0,
-      at: Number(voice.at) || Date.now()
+      at: Number(voice.at) || Date.now(),
+      text: typeof voice.text === 'string' ? voice.text.slice(0, 500) : '',
+      likes: 0,
+      liked: false
     }
-    return { ok: true, oldPath: oldPath }
+    item.voices.push(v)
+    return { ok: true, voiceId: v.id }
+  })
+}
+
+// 家长给语音点赞：可多次点赞，每赞 +1 分并记入积分流水
+// 家长点赞/取消赞（开关式）：每条语音最多一个赞
+// 点赞 → +1 分；再点一下取消 → 扣回 1 分
+function toggleVoiceLike(day, itemId, voiceId) {
+  return mutate(function (s) {
+    const sheet = s.sheets[day]
+    if (!sheet) return { ok: false, error: '这一天没有清单' }
+    const item = sheet.items.filter(function (it) {
+      return it.id === itemId
+    })[0]
+    if (!item) return { ok: false, error: '找不到这一项' }
+    const v = (item.voices || []).filter(function (x) {
+      return x.id === voiceId
+    })[0]
+    if (!v) return { ok: false, error: '找不到这段语音' }
+    if (v.liked) {
+      v.liked = false
+      v.likes = 0
+      addLog(s, 'voice_unlike', -1, day, '取消赞 · ' + item.title, v.id)
+      return { ok: true, liked: false, likes: 0 }
+    }
+    v.liked = true
+    v.likes = 1
+    addLog(s, 'voice_like', 1, day, '点赞语音 · ' + item.title, v.id)
+    return { ok: true, liked: true, likes: 1 }
+  })
+}
+
+// 把转写出的文字写到某条语音上（转文字服务异步回调后调用）
+function setVoiceText(day, itemId, voiceId, text) {
+  return mutate(function (s) {
+    const sheet = s.sheets[day]
+    if (!sheet) return { ok: false, error: '这一天没有清单' }
+    const item = sheet.items.filter(function (it) {
+      return it.id === itemId
+    })[0]
+    if (!item) return { ok: false, error: '找不到这一项' }
+    const v = (item.voices || []).filter(function (x) {
+      return x.id === voiceId
+    })[0]
+    if (!v) return { ok: false, error: '找不到这段语音' }
+    v.text = typeof text === 'string' ? text.slice(0, 500) : ''
+    return { ok: true }
+  })
+}
+
+// 学生删除自己的某条语音；带回文件路径，由调用方删存储文件
+function removeVoice(day, itemId, voiceId) {
+  return mutate(function (s) {
+    const sheet = s.sheets[day]
+    if (!sheet) return { ok: false, error: '这一天没有清单' }
+    const item = sheet.items.filter(function (it) {
+      return it.id === itemId
+    })[0]
+    if (!item) return { ok: false, error: '找不到这一项' }
+    const voices = Array.isArray(item.voices) ? item.voices : []
+    const v = voices.filter(function (x) {
+      return x.id === voiceId
+    })[0]
+    if (!v) return { ok: false, error: '找不到这段语音' }
+    item.voices = voices.filter(function (x) {
+      return x.id !== voiceId
+    })
+    return { ok: true, path: v.path || '' }
   })
 }
 
@@ -1085,6 +1210,11 @@ function listTaskGroups() {
       })
       .sort(function (a, b) {
         return a.sort - b.sort
+      })
+      .map(function (c) {
+        return Object.assign({}, c, {
+          repeatDays: Array.isArray(c.repeatDays) && c.repeatDays.length ? c.repeatDays : ALL_DAYS
+        })
       })
     const points = children.reduce(function (sum, c) {
       return sum + c.points
@@ -1187,6 +1317,11 @@ function updateChild(id, patch) {
       if (t.id === id && t.level === 2) {
         if (patch.title !== undefined) t.title = patch.title
         if (patch.points !== undefined) t.points = Number(patch.points) || 0
+        if (patch.repeatDays !== undefined) {
+          t.repeatDays = Array.isArray(patch.repeatDays) && patch.repeatDays.length
+            ? patch.repeatDays
+            : ALL_DAYS.slice()
+        }
       }
     })
     return { ok: true }
@@ -1202,8 +1337,8 @@ function removeChild(id) {
   })
 }
 
-// 只加今天：不影响模板，追加进当天清单
-function addExtraToday(title, points) {
+// 只加今天：不影响模板，追加进当天清单。byChild=true 时为学生发起，待家长同意
+function addExtraToday(title, points, byChild) {
   return mutate(function (s) {
     const day = dateUtil.today()
     let group = s.tasks.filter(function (t) {
@@ -1233,6 +1368,9 @@ function addExtraToday(title, points) {
     const siblings = s.tasks.filter(function (t) {
       return t.level === 2 && t.groupKey === group.groupKey
     })
+    // 先把当天清单生成出来，再压临时任务；
+    // 否则 ensureSheet 会按模板把刚压入的任务生成为已同意的项
+    const sheet = ensureSheet(day)
     const taskId = newId(s)
     s.tasks.push({
       id: taskId,
@@ -1245,16 +1383,15 @@ function addExtraToday(title, points) {
       repeatDays: ALL_DAYS.slice(),
       active: true,
       extraDate: day,
-      createdBy: 'parent'
+      createdBy: byChild ? 'child' : 'parent'
     })
-
-    const sheet = ensureSheet(day)
     const dup = sheet.items.some(function (it) {
       return it.title === title && it.groupKey === group.groupKey
     })
     if (!dup) {
       sheet.items.push({
         id: newId(s),
+        taskId: taskId,
         groupKey: group.groupKey,
         groupTitle: group.title,
         groupIcon: group.icon,
@@ -1264,10 +1401,148 @@ function addExtraToday(title, points) {
         sort: siblings.length * 10,
         done: false,
         doneAt: null,
-        revokedAt: null
+        revokedAt: null,
+        status: byChild ? 'pending' : 'approved'
       })
     }
     return { ok: true, taskId: taskId }
+  })
+}
+
+// 家长同意学生发起的临时项：之后孩子可以正常打卡得分
+function approveExtra(day, itemId) {
+  return mutate(function (s) {
+    const sheet = s.sheets[day]
+    if (!sheet) return { ok: false, error: '这一天没有清单' }
+    const item = sheet.items.filter(function (it) {
+      return it.id === itemId
+    })[0]
+    if (!item) return { ok: false, error: '找不到这一项' }
+    if (item.status !== 'pending') return { ok: false, error: '这一项不需要同意' }
+    item.status = 'approved'
+    return { ok: true, points: item.points, title: item.title }
+  })
+}
+
+// 家长改待同意临时项的分值（清单和模板任务同步）
+function updateExtraPoints(day, itemId, points) {
+  return mutate(function (s) {
+    const sheet = s.sheets[day]
+    if (!sheet) return { ok: false, error: '这一天没有清单' }
+    const item = sheet.items.filter(function (it) {
+      return it.id === itemId
+    })[0]
+    if (!item) return { ok: false, error: '找不到这一项' }
+    if (item.status !== 'pending') return { ok: false, error: '只有待同意的项能改分值' }
+    const p = Number(points)
+    if (!p || p <= 0) return { ok: false, error: '分值要是正数' }
+    item.points = Math.round(p)
+    if (item.taskId) {
+      s.tasks.forEach(function (t) {
+        if (t.id === item.taskId) t.points = item.points
+      })
+    }
+    return { ok: true, points: item.points }
+  })
+}
+
+// 家长拒绝学生发起的临时项：从今天清单和模板里都去掉
+function rejectExtra(day, itemId) {
+  return mutate(function (s) {
+    const sheet = s.sheets[day]
+    if (!sheet) return { ok: false, error: '这一天没有清单' }
+    const item = sheet.items.filter(function (it) {
+      return it.id === itemId
+    })[0]
+    if (!item) return { ok: false, error: '找不到这一项' }
+    if (item.status !== 'pending') return { ok: false, error: '只有待同意的项能拒绝' }
+    if (item.taskId) {
+      s.tasks = s.tasks.filter(function (t) {
+        return t.id !== item.taskId
+      })
+    }
+    sheet.items = sheet.items.filter(function (it) {
+      return it.id !== itemId
+    })
+    return { ok: true }
+  })
+}
+
+/* ---------------- 删除今日项 ---------------- */
+
+function findSheetItem(s, day, itemId) {
+  const sheet = s.sheets[day]
+  if (!sheet) return { error: { ok: false, error: '这一天没有清单' } }
+  const item = sheet.items.filter(function (it) {
+    return it.id === itemId
+  })[0]
+  if (!item) return { error: { ok: false, error: '找不到这一项' } }
+  return { sheet: sheet, item: item }
+}
+
+// 学生申请删除今天的某一项：标记 del-pending，家长同意后才真正移除
+function requestDelete(day, itemId) {
+  return mutate(function (s) {
+    const f = findSheetItem(s, day, itemId)
+    if (f.error) return f.error
+    const item = f.item
+    if (item.done) return { ok: false, error: '做完的项不能申请删除' }
+    if (item.status === 'pending') return { ok: false, error: '这一项还在等家长同意加项' }
+    if (item.status === 'del-pending') return { ok: false, error: '已经申请过了，等家长处理' }
+    item.status = 'del-pending'
+    return { ok: true, title: item.title }
+  })
+}
+
+// 学生取消删除申请
+function cancelDeleteRequest(day, itemId) {
+  return mutate(function (s) {
+    const f = findSheetItem(s, day, itemId)
+    if (f.error) return f.error
+    if (f.item.status !== 'del-pending') return { ok: false, error: '这一项没有待处理的删除申请' }
+    f.item.status = 'approved'
+    return { ok: true }
+  })
+}
+
+// 家长同意删除：只从今天清单移除，模板不动（明天照常出现）
+function approveDelete(day, itemId) {
+  return mutate(function (s) {
+    const f = findSheetItem(s, day, itemId)
+    if (f.error) return f.error
+    const item = f.item
+    if (item.status !== 'del-pending') return { ok: false, error: '这一项没有待处理的删除申请' }
+    if (item.done) return { ok: false, error: '这一项已完成，请先撤销再删除' }
+    f.sheet.items = f.sheet.items.filter(function (it) {
+      return it.id !== itemId
+    })
+    return { ok: true, title: item.title }
+  })
+}
+
+// 家长拒绝删除申请：恢复正常打卡
+function rejectDelete(day, itemId) {
+  return mutate(function (s) {
+    const f = findSheetItem(s, day, itemId)
+    if (f.error) return f.error
+    if (f.item.status !== 'del-pending') return { ok: false, error: '这一项没有待处理的删除申请' }
+    f.item.status = 'approved'
+    return { ok: true, title: f.item.title }
+  })
+}
+
+// 家长直接删除今天的某一项（未完成、非待同意加项）
+function deleteItemToday(day, itemId) {
+  return mutate(function (s) {
+    const f = findSheetItem(s, day, itemId)
+    if (f.error) return f.error
+    const item = f.item
+    if (item.status === 'pending') return { ok: false, error: '待同意的加项请用「不同意」处理' }
+    if (item.done) return { ok: false, error: '这一项已完成，请先撤销再删除' }
+    f.sheet.items = f.sheet.items.filter(function (it) {
+      return it.id !== itemId
+    })
+    return { ok: true, title: item.title }
   })
 }
 
@@ -1577,7 +1852,10 @@ function todayOverview() {
   const day = dateUtil.today()
   const sheet = ensureSheet(day)
   const items = sheet.items
-  const done = items.filter(function (it) {
+  const active = items.filter(function (it) {
+    return it.status !== 'pending'
+  })
+  const done = active.filter(function (it) {
     return it.done
   }).length
   const groups = groupItems(items).map(function (g) {
@@ -1590,11 +1868,11 @@ function todayOverview() {
     day: day,
     pretty: dateUtil.prettyFull(day),
     groups: groups,
-    total: items.length,
+    total: active.length,
     done: done,
-    percent: items.length ? Math.round((done / items.length) * 100) : 0,
+    percent: active.length ? Math.round((done / active.length) * 100) : 0,
     earned: dayEarned(day),
-    remain: items.reduce(function (sum, it) {
+    remain: active.reduce(function (sum, it) {
       return it.done ? sum : sum + it.points
     }, 0),
     balance: balance(),
@@ -1648,7 +1926,18 @@ module.exports = {
   toggleItem,
   revokeItem,
   adjustPoints,
-  setItemVoice,
+  approveExtra,
+  updateExtraPoints,
+  rejectExtra,
+  requestDelete,
+  cancelDeleteRequest,
+  approveDelete,
+  rejectDelete,
+  deleteItemToday,
+  appendItemVoice,
+  toggleVoiceLike,
+  setVoiceText,
+  removeVoice,
   balance,
   earnedTotal,
   spentTotal,
