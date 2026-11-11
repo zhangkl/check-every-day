@@ -3,6 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "description": "PDCA 好习惯 · 小学生自我管理打卡小程序",
+  "scripts": {
+    "test": "node tests/run.js",
+    "test:all": "node tests/run.js --all",
+    "test:list": "node tests/run.js --list",
+    "test:verbose": "node tests/run.js --verbose",
+    "check:size": "node tests/check-doc-size.js",
+    "check:pack": "node tests/check-pack.js",
+    "check:weaknet": "node tests/check-weaknet.js",
+    "check:all": "node tests/run.js && node tests/check-doc-size.js && node tests/check-pack.js && node tests/check-weaknet.js --no-real"
+  },
   "dependencies": {
     "@tencent-ai/workbuddy-cloud-sdk": "dev"
   }

@@ -3,21 +3,125 @@
   align-items: center;
 }
 
-.avatar {
-  width: 104rpx;
-  height: 104rpx;
-  border-radius: 32rpx;
-  background: #fdf3e8;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 52rpx;
+.avatar-wrap {
+  position: relative;
   margin-right: 24rpx;
   flex-shrink: 0;
 }
 
+.avatar-wrap:active {
+  opacity: 0.85;
+}
+
+.avatar {
+  width: 104rpx;
+  height: 104rpx;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ffe9d2, #ffd9ad);
+  border: 4rpx solid #fff;
+  box-shadow: 0 4rpx 14rpx rgba(214, 158, 92, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.avatar-emoji {
+  font-size: 52rpx;
+  line-height: 1;
+}
+
+.avatar-edit {
+  position: absolute;
+  right: -2rpx;
+  bottom: -2rpx;
+  width: 34rpx;
+  height: 34rpx;
+  border-radius: 50%;
+  background: #fff;
+  font-size: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2rpx 6rpx rgba(0, 0, 0, 0.12);
+}
+
+/* 头像选择：emoji 全池滑动网格 + 自定义输入 */
+.avatar-role {
+  text-align: center;
+  color: #a5988b;
+  margin-bottom: 16rpx;
+}
+
+.emoji-scroll {
+  max-height: 44vh;
+  margin-bottom: 20rpx;
+}
+
+.emoji-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.emoji-opt {
+  width: 92rpx;
+  height: 92rpx;
+  border-radius: 24rpx;
+  background: #fdf3e8;
+  border: 4rpx solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12rpx;
+}
+
+.emoji-opt:active {
+  transform: scale(0.9);
+}
+
+.emoji-opt-t {
+  font-size: 48rpx;
+  line-height: 1;
+}
+
+.emoji-opt.sel {
+  border-color: #f5a65b;
+  background: #ffe9d2;
+  box-shadow: 0 4rpx 14rpx rgba(214, 158, 92, 0.35);
+}
+
+.emoji-custom {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.emoji-input {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.emoji-use {
+  flex-shrink: 0;
+  height: 84rpx;
+  line-height: 84rpx;
+  padding: 0 30rpx;
+  border-radius: 22rpx;
+  background: #f0e6d8;
+  color: #b3a594;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.emoji-use.on {
+  background: linear-gradient(135deg, #f7bd7e, #f5a65b);
+  color: #ffffff;
+}
+
 .profile .muted {
-  margin-top: 8rpx;
+  margin-top: 10rpx;
+  line-height: 1.5;
 }
 
 .stats {
@@ -121,13 +225,7 @@
   padding: 16rpx 0 40rpx;
 }
 
-.invite {
-  display: flex;
-  align-items: center;
-}
-
 .invite-code {
-  margin-left: 20rpx;
   padding: 12rpx 22rpx;
   border-radius: 18rpx;
   background: #fff5e9;
@@ -136,6 +234,50 @@
   font-weight: 700;
   letter-spacing: 6rpx;
   white-space: nowrap;
+}
+
+/* 菜单行内的邀请码 + 邀请按钮 */
+.invite-item .body {
+  white-space: nowrap;
+}
+
+.invite-code.sm {
+  flex-shrink: 0;
+  margin-left: 0;
+  padding: 6rpx 14rpx;
+  font-size: 24rpx;
+  letter-spacing: 2rpx;
+}
+
+.invite-code.sm:active {
+  opacity: 0.75;
+}
+
+.invite-share {
+  flex: 0 0 76rpx;
+  width: 76rpx;
+  min-width: 0;
+  height: 44rpx;
+  line-height: 44rpx;
+  padding: 0;
+  margin: 0 0 0 8rpx;
+  border: none;
+  background: transparent;
+  color: #b3a594;
+  font-size: 22rpx;
+}
+
+.invite-share::after {
+  border: none;
+}
+
+.label-link {
+  color: #d9863c;
+}
+
+/* 分享按压反馈（邀请按钮 hover-class 用） */
+.share-btn-hover {
+  opacity: 0.85;
 }
 
 .boot {
@@ -200,6 +342,88 @@
   color: #8a7a6d;
   line-height: 1.6;
   margin-bottom: 36rpx;
+}
+
+/* 称呼弹窗里的输入框：有高度有底色，和按钮拉开距离 */
+.sheet-input {
+  height: 84rpx;
+  background: #fbf6ef;
+  border-radius: 22rpx;
+  padding: 0 24rpx;
+  font-size: 30rpx;
+  color: #4a4038;
+  margin-bottom: 28rpx;
+}
+
+.ph {
+  color: #c4b6a7;
+}
+
+/* 家庭信息弹窗 */
+.fam-edit {
+  font-size: 24rpx;
+  margin-left: 10rpx;
+  opacity: 0.55;
+}
+
+.fam-label {
+  color: #8a7a6d;
+  margin-bottom: 8rpx;
+}
+
+.sheet-content.small {
+  font-size: 24rpx;
+  margin-bottom: 26rpx;
+}
+
+/* 家庭成员列表：头像 + 称呼 + 身份标签 */
+.fam-members {
+  background: #f8f2ea;
+  border-radius: 16rpx;
+  padding: 8rpx 16rpx;
+  margin-bottom: 26rpx;
+}
+
+.fam-member {
+  display: flex;
+  align-items: center;
+  padding: 14rpx 4rpx;
+}
+
+.fam-member + .fam-member {
+  border-top: 2rpx solid #efe6d8;
+}
+
+.fm-avatar {
+  font-size: 40rpx;
+  margin-right: 16rpx;
+}
+
+.fm-name {
+  font-size: 28rpx;
+  color: #4a4038;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fm-role {
+  font-size: 20rpx;
+  border-radius: 999rpx;
+  padding: 4rpx 14rpx;
+  flex-shrink: 0;
+}
+
+.fm-role.p {
+  color: #d9863c;
+  background: #fdf1e3;
+}
+
+.fm-role.c {
+  color: #6f9a6a;
+  background: #eef5ec;
 }
 
 .sheet-btns {

@@ -153,3 +153,27 @@
   line-height: 1.7;
   padding: 0 32rpx;
 }
+
+/* 身份选择：孩子直接进，家长需家长密码（家里设了才要） */
+.role-row {
+  display: flex;
+  gap: 16rpx;
+}
+
+.role-chip {
+  flex: 1;
+  text-align: center;
+  padding: 20rpx 0;
+  border-radius: 20rpx;
+  background: #f6f0e8;
+  color: #8a7a6d;
+  font-size: 28rpx;
+  font-weight: 600;
+  border: 3rpx solid transparent;
+}
+
+.role-chip.on {
+  background: #fff5e9;
+  border-color: #f5a65b;
+  color: #d9863c;
+}

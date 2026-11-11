@@ -2,6 +2,8 @@ const store = require('../../utils/store')
 const guard = require('../../utils/guard')
 const voice = require('../../utils/voice')
 const asr = require('../../utils/asr')
+const quotes = require('../../utils/quotes')
+const dateUtil = require('../../utils/date')
 
 function lateText() {
   const now = new Date()
@@ -38,6 +40,189 @@ function formatVoiceText(text) {
     .join('\n\n')
 }
 
+/* ---------------- 小项标题后的语音/点赞/评论小按钮（一行放不下就 …） ---------------- */
+
+// 这一行能放几个小按钮：按标题字数估算剩余宽度（rpx 布局与机型无关）
+function chipCapacity(it) {
+  const extra = it.status === 'pending' || it.status === 'del-pending' ? 4 : 0
+  const titleW = (String(it.title || '').length + extra) * 30 + 16
+  const left = 500 - titleW
+  return Math.max(1, Math.min(5, Math.floor(left / 76)))
+}
+
+// 把每条语音的操作拍扁成一维小按钮，供收起态一行展示
+function buildInlineChips(it, ctx) {
+  const all = []
+  ;(it.voices || []).forEach(function (v) {
+    const base = { item: it.id, voice: v.id, path: v.path || '' }
+    function push(type, label, cls) {
+      all.push(Object.assign({}, base, { key: v.id + '-' + type, type: type, label: label, cls: cls }))
+    }
+    push('play', (ctx.playingId === v.id ? '🔊 ' : '▶ ') + v.duration + '″', ctx.playingId === v.id ? 'voice playing' : 'voice')
+    if (ctx.role === 'parent' || v.liked) {
+      push('like', v.liked ? '👍 1' : '👍', 'like' + (v.liked ? ' on' : '') + (ctx.likePopId === v.id ? ' pop' : ''))
+    }
+    if (v.text) push('text', '📝', 'icon')
+    push('comment', '💬' + (v.comments && v.comments.length ? v.comments.length : ''), 'icon')
+    if (!v.text && ctx.transcribingId !== v.id) push('trans', '转文字', 'text')
+    if (ctx.transcribingId === v.id) push('tip', '转文字中…', 'tip')
+  })
+  return all
+}
+
+function decorateGroups(groups, ctx) {
+  return (groups || []).map(function (g) {
+    const items = (g.items || []).map(function (it) {
+      const all = buildInlineChips(it, ctx)
+      const cap = chipCapacity(it)
+      const more = all.length > cap
+      return Object.assign({}, it, {
+        chips: more ? all.slice(0, Math.max(1, cap - 1)) : all,
+        chipsMore: more
+      })
+    })
+    // tab 上最多展示前四个字，全名在列表头展示
+    return Object.assign({}, g, { items: items, tabTitle: (g.title || '').slice(0, 4) })
+  })
+}
+
+/* ---------------- 实时同步：对比新旧文档，按角色生成提示 ---------------- */
+
+// 评论时间显示：今天/昨天/更早
+function fmtWhen(at) {
+  const t = Number(at) || 0
+  if (!t) return ''
+  const d = new Date(t)
+  const hm = d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0')
+  const dayStart = new Date()
+  dayStart.setHours(0, 0, 0, 0)
+  const oneDay = 24 * 3600 * 1000
+  if (t >= dayStart.getTime()) return '今天 ' + hm
+  if (t >= dayStart.getTime() - oneDay) return '昨天 ' + hm
+  return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + hm
+}
+
+// 组装一条留言的展示数据（带头像、称呼标签、时间）
+// 按「uid+身份」取个人资料：称呼/头像分家长、学生两份存（store.profileKey 同规则）；
+// 旧数据存在旧键 <uid> 下，只有家长身份回退读取（旧称呼只可能是家长设置的）
+function profileOf(profile, uid, role) {
+  if (!profile || !uid) return null
+  const keyed = profile[uid + '|' + (role === 'parent' ? 'p' : 'c')]
+  if (keyed) return keyed
+  return role === 'parent' ? profile[uid] || null : null
+}
+
+function shapeNote(n, profile, myUid, role) {
+  const p = profileOf(profile, n.uid, n.role)
+  const fam = store.getFamily() || {}
+  const label =
+    (p && p.label) || (n.role === 'parent' ? '家长' : fam.childName || '孩子')
+  return {
+    id: n.id,
+    who: label,
+    role: n.role,
+    avatar: (p && p.avatar) || (n.role === 'parent' ? '👨‍👩‍👧' : '🧒'),
+    text: n.text,
+    at: n.at,
+    when: fmtWhen(n.at),
+    pinned: !!n.pinned,
+    mine: n.uid === myUid && (n.role === 'parent') === (role === 'parent')
+  }
+}
+
+// 返回 { text: 要 toast 的提示（可为空），like: 孩子被点赞的庆祝文案（可为空） }
+function diffDocs(oldDoc, newDoc, day, role) {
+  const out = { text: '', like: '' }
+  if (!oldDoc || !newDoc || !day) return out
+  const msgs = []
+  const a = (oldDoc.sheets && oldDoc.sheets[day] && oldDoc.sheets[day].items) || []
+  const b = (newDoc.sheets && newDoc.sheets[day] && newDoc.sheets[day].items) || []
+  const oldMap = {}
+  a.forEach(function (it) { oldMap[it.id] = it })
+
+  b.forEach(function (it) {
+    const o = oldMap[it.id]
+    if (!o) {
+      // 今天清单里新出现的条目
+      if (it.status === 'pending') {
+        if (role === 'parent') msgs.push('孩子想加一项：' + it.title)
+      } else if (role === 'child') {
+        msgs.push('新任务来了：' + it.title)
+      }
+      return
+    }
+    if (!o.done && it.done) {
+      if (role === 'parent') {
+        msgs.push(it.title + ' 打卡完成，+' + it.points + ' 分')
+      } else {
+        msgs.push(it.title + ' 打卡成功，+' + it.points + ' 分！')
+      }
+    } else if (o.done && !it.done && role === 'parent') {
+      msgs.push('已撤销打卡：' + it.title)
+    }
+    if (o.status === 'pending' && it.status !== 'pending' && role === 'child' && it.status !== 'del-pending') {
+      msgs.push('家长同意了新任务：' + it.title)
+    }
+    if (o.status === 'del-pending' && it.status !== 'del-pending' && role === 'child') {
+      msgs.push('删除请求没通过，继续加油：' + it.title)
+    }
+    const vo = o.voices || []
+    const vn = it.voices || []
+    if (vn.length > vo.length && role === 'parent') {
+      msgs.push('孩子新录了语音小结：' + it.title)
+    }
+    vn.forEach(function (v) {
+      const old = vo.filter(function (x) { return x.id === v.id })[0]
+      if (old && !old.liked && v.liked && role === 'child') {
+        out.like = '家长给「' + it.title + '」的语音点了赞，+1 分'
+      }
+      // 新评论：孩子收到家长评论的提示，家长收到孩子评论的提示（自己的评论不提示）
+      const oc = (old && old.comments) || []
+      const nc = v.comments || []
+      if (nc.length > oc.length) {
+        const added = nc.slice(oc.length)
+        if (role === 'child' && added.some(function (c) { return c.role === 'parent' })) {
+          msgs.push('家长评论了你的语音，快去看看')
+        }
+        if (role === 'parent' && added.some(function (c) { return c.role === 'child' })) {
+          msgs.push('孩子评论了语音：' + it.title)
+        }
+      }
+    })
+  })
+  a.forEach(function (it) {
+    const still = b.filter(function (x) { return x.id === it.id })[0]
+    if (!still) {
+      msgs.push(role === 'parent' ? '任务已删除：' + it.title : '这一项被删除了：' + it.title)
+    }
+  })
+  // 孩子发起兑换（家长端提示）
+  if (role === 'parent') {
+    const ra = oldDoc.redemptions || []
+    const rb = newDoc.redemptions || []
+    if (rb.length > ra.length) {
+      const nr = rb[rb.length - 1]
+      if (nr && nr.status === 'pending') {
+        msgs.push('孩子想兑换：' + (nr.giftName || '礼物'))
+      }
+    }
+  }
+  // 留言板：收到对方的新留言才提示（自己的、删除的不提示）
+  const na = oldDoc.notes || []
+  const nb = newDoc.notes || []
+  const oldIds = {}
+  na.forEach(function (n) { oldIds[n.id] = true })
+  const newOnes = nb.filter(function (n) { return !oldIds[n.id] })
+  if (role === 'child' && newOnes.some(function (n) { return n.role === 'parent' })) {
+    msgs.push('📢 家长发了新公告，去看看')
+  }
+  if (role === 'parent' && newOnes.some(function (n) { return n.role === 'child' })) {
+    msgs.push('孩子给你留言了')
+  }
+  if (msgs.length) out.text = msgs.slice(0, 2).join('；')
+  return out
+}
+
 Page({
   data: {
     role: 'child',
@@ -56,9 +241,23 @@ Page({
     playingId: '',
     likePopId: '',
     transcribingId: '',
+    expanded: {},
     confirm: null,
     childForm: null,
-    textViewer: null
+    adjustForm: null,
+    textViewer: null,
+    likeCele: null,
+    commentBox: null,
+    commentInput: '',
+    quoteIdx: 0,
+    poem: null,
+    noteSheet: null,
+    noteInput: '',
+    notePreview: null,
+    activeIdx: 0,
+    noticeCount: 0,
+    noticeUnread: 0,
+    noticeLatest: ''
   },
 
   async onShow() {
@@ -68,6 +267,15 @@ Page({
     getApp().globalData.role = role
     this.setData({ role })
     this.refresh()
+    this.startPolling()
+  },
+
+  onHide() {
+    this.stopPolling()
+  },
+
+  onUnload() {
+    this.stopPolling()
   },
 
   async onPullDownRefresh() {
@@ -76,10 +284,116 @@ Page({
     wx.stopPullDownRefresh()
   },
 
+  /* ---------------- 实时同步：轻量轮询（前台每 15 秒查一次版本号） ---------------- */
+
+  startPolling() {
+    if (this.pollTimer || store.isLocal()) return
+    const self = this
+    this.pollTimer = setInterval(function () {
+      self.pollRemote()
+    }, 15000)
+  },
+
+  stopPolling() {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer)
+      this.pollTimer = null
+    }
+  },
+
+  async pollRemote() {
+    if (this.polling || this.busy) return
+    if (!this.data.ready || store.isLocal()) return
+    this.polling = true
+    try {
+      const r = await store.fetchRemoteRev()
+      if (r.skip || r.error) return
+      if (r.rev === store.getRev()) return // 没变化，什么都不做
+      const oldDoc = JSON.parse(JSON.stringify(store.getDoc() || {}))
+      const day = this.data.ov ? this.data.ov.day : ''
+      const role = this.data.role
+      const loaded = await store.reload()
+      if (!loaded.ok) return
+      const msgs = diffDocs(oldDoc, store.getDoc(), day, role)
+      this.refresh()
+      // 孩子被点赞 → 全屏红心庆祝
+      if (msgs.like) {
+        this.setData({ likeCele: { text: msgs.like } })
+        setTimeout(() => {
+          if (this.data.likeCele) this.setData({ likeCele: null })
+        }, 2600)
+      }
+      if (msgs.text) {
+        wx.showToast({ title: msgs.text, icon: 'none', duration: 2800 })
+      }
+    } catch (e) {
+      // 轮询失败静默，不打扰
+    } finally {
+      this.polling = false
+    }
+  },
+
+  hideLikeCele() {
+    this.setData({ likeCele: null })
+  },
+
+  // 每日一句：点一下换下一条
+  onQuoteTap() {
+    const next = (this.data.quoteIdx || 0) + 1
+    const day = (this.data.ov && this.data.ov.day) || ''
+    this.setData({ quoteIdx: next, quote: quotes.pick(day, next) })
+  },
+
+  // hero 里的随机古诗词：点一下换一首（避开底部每日一句和当前这首）
+  onPoemTap() {
+    const blocked = []
+    if (this.data.quote && this.data.quote.zh) blocked.push(this.data.quote.zh)
+    if (this.data.poem && this.data.poem.zh) blocked.push(this.data.poem.zh)
+    this.setData({ poem: quotes.pickPoem(blocked) })
+  },
+
+  // 操作提示：按角色给出 1234 条，点底部 💡 打开
+  onTipsOpen() {
+    const childTips = [
+      '点任务旁的 🎙 说语音，再点一下结束，说完自动转文字',
+      '长按语音条可删掉重说；点 📝 看转的文字，点 💬 看评论',
+      '长按没完成的任务可申请删除，家长同意后生效',
+      '点「＋ 自己加一项」加任务，家长同意后当天生效',
+      '被 👍 点赞 +1 分，会有满屏庆祝动画',
+      '点左上角的头像可换头像、改称呼，进「我的」页',
+      '标题后面的小按钮放不下时会显示「…」，点开看全部语音和评论'
+    ]
+    const parentTips = [
+      '点 ✓ 可同意或拒绝孩子申请的加项 / 删除',
+      '长按任务可改分值、拒绝、删除或撤销完成',
+      '点 👍 给语音点赞 +1 分，再点一下取消',
+      '点 📢 打开家庭留言板，置顶的留言就是首页公告',
+      '改清单当天就生效，孩子端 15 秒内自动同步',
+      '点左上角的头像可换头像、改称呼，进「我的」页',
+      '清单里带「待家长同意」的加项/删除，在首页点 ✓ 就地处理；兑换与心愿审批在「我的」里',
+      '标题后面的小按钮放不下时会显示「…」，点开看全部语音和评论'
+    ]
+    this.setData({
+      tipsSheet: true,
+      tipsList: this.data.role === 'parent' ? parentTips : childTips
+    })
+  },
+
+  onTipsClose() {
+    this.setData({ tipsSheet: false })
+  },
+
   refresh() {
     if (!store.isSetup()) return
     const ov = store.todayOverview()
     const role = store.getRole()
+    // 标题后的小按钮按当前状态拍扁，供收起态一行展示
+    ov.groups = decorateGroups(ov.groups, {
+      role: role,
+      playingId: this.data.playingId,
+      transcribingId: this.data.transcribingId,
+      likePopId: this.data.likePopId
+    })
     const family = store.getFamily()
     // 主标题只说一件事：离完成还差多少
     let heroTitle
@@ -90,18 +404,33 @@ Page({
     } else {
       heroTitle = family.childName + '完成 ' + ov.done + '/' + ov.total + ' 项'
     }
+    const todayQuote = quotes.pick(ov.day, this.data.quoteIdx || 0)
+    const allNotices = store.listNotices()
     const patch = {
       ov,
       role,
       family,
       heroTitle,
+      avatar: store.getMyAvatar(),
+      notePreview: this.buildNotePreview(),
       lateText: lateText(),
-      ready: true
+      quote: todayQuote,
+      // 学生端 hero 的随机古诗词：进页面抽一次，之后刷新不跳字
+      poem: this.data.poem || quotes.pickPoem(todayQuote.zh),
+      noticeCount: allNotices.length,
+      noticeUnread: allNotices.filter(function (n) { return n.unread }).length,
+      noticeLatest: allNotices.length ? (allNotices[0].fromName + ' ' + allNotices[0].text) : '',
+      ready: true,
+      // 当前选中的大项越界时回到第一个（清单被删空/变少时兜底）
+      activeIdx: Math.min(this.data.activeIdx || 0, Math.max((ov.groups || []).length - 1, 0))
     }
     if (role === 'parent') {
       patch.week = store.recentDays(7)
+      // 待处理 = 兑换申请 + 孩子心愿（和审批中心口径一致）
       patch.pending = store.listRedemptions().filter(function (r) {
         return r.status === 'pending'
+      }).length + store.listWishes().filter(function (w) {
+        return w.status === 'pending'
       }).length
     }
     this.setData(patch)
@@ -111,6 +440,38 @@ Page({
     return (this.data.ov.groups || [])
       .reduce((all, g) => all.concat(g.items), [])
       .filter((it) => it.id === id)[0]
+  },
+
+  // 点击大项标签切换当前卡片（动画由节点随 activeIdx 重建触发，方向跟随切换方向）
+  onGroupTab(e) {
+    const idx = Number(e.currentTarget.dataset.idx)
+    if (isNaN(idx) || idx === this.data.activeIdx) return
+    this.switchGroup(idx)
+  },
+
+  switchGroup(idx) {
+    const groups = this.data.ov.groups || []
+    if (idx < 0 || idx >= groups.length) return
+    const dir = idx > this.data.activeIdx ? 'r' : 'l'
+    this.setData({ activeIdx: idx, animDir: dir })
+  },
+
+  // 横滑切换大项：绑在小项列表上，避免和大项带的横向滚动打架
+  onCardTouchStart(e) {
+    const t = e.touches[0]
+    this._sx = t.clientX
+    this._sy = t.clientY
+  },
+
+  onCardTouchEnd(e) {
+    if (this._sx == null) return
+    const t = e.changedTouches[0]
+    const dx = t.clientX - this._sx
+    const dy = t.clientY - this._sy
+    this._sx = null
+    // 横向位移够大且明显大于纵向才算滑动
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+    this.switchGroup(this.data.activeIdx + (dx < 0 ? 1 : -1))
   },
 
   async onToggle(e) {
@@ -404,6 +765,13 @@ Page({
     wx.navigateTo({ url: '/pages/parent-approve/parent-approve' })
   },
 
+  // 家庭动态：消息 + 操作流水融合成独立页面，两端同一个入口
+  // 家长端「查流水」直接落在「全部动态」tab，其余入口落在「与我相关」
+  onOpenFeed(e) {
+    const tab = e && e.currentTarget && e.currentTarget.dataset.tab === 'all' ? 'all' : 'mine'
+    wx.navigateTo({ url: '/pages/feed/feed?tab=' + tab })
+  },
+
   goMe() {
     wx.navigateTo({ url: '/pages/me/me' })
   },
@@ -437,28 +805,63 @@ Page({
     })
   },
 
-  onAdjust() {
-    wx.showModal({
-      title: '手动调整积分',
-      editable: true,
-      placeholderText: '正数加分，负数扣分，例如 5',
-      success: async (r) => {
-        if (!r.confirm) return
-        const raw = (r.content || '').trim()
-        const amount = Number(raw)
-        if (!amount) {
-          wx.showToast({ title: '请输入一个数字', icon: 'none' })
-          return
-        }
-        const res = await store.adjustPoints(amount, amount > 0 ? '家长额外奖励' : '家长扣分')
-        this.refresh()
-        if (!res.ok) {
-          wx.showToast({ title: res.error || '没保存上', icon: 'none' })
-          return
-        }
-        wx.showToast({ title: '已' + (amount > 0 ? '加' : '扣') + Math.abs(amount) + '分', icon: 'none' })
+  /* ---------------- 手动调分：分值 + 一句原因 ---------------- */
+
+  // 兜底：个别环境 bindinput 不触发，保存时直接读输入框节点的值
+  readInput(id) {
+    return new Promise((resolve) => {
+      try {
+        wx.createSelectorQuery()
+          .in(this)
+          .select('#' + id)
+          .fields({ properties: ['value'] }, (r) => resolve(r && r.value != null ? String(r.value) : ''))
+          .exec()
+      } catch (e) {
+        resolve('')
       }
     })
+  },
+
+  onAdjust() {
+    if (this.data.role !== 'parent') return
+    this.setData({ adjustForm: { amount: '', note: '' } })
+  },
+
+  onAdjustAmount(e) {
+    this.setData({ 'adjustForm.amount': e.detail.value })
+  },
+
+  onAdjustNote(e) {
+    this.setData({ 'adjustForm.note': e.detail.value })
+  },
+
+  onAdjustCancel() {
+    this.setData({ adjustForm: null })
+  },
+
+  async onAdjustOk() {
+    const form = this.data.adjustForm || {}
+    let raw = String(form.amount == null ? '' : form.amount).trim()
+    let note = String(form.note == null ? '' : form.note).trim()
+    if (!raw) raw = (await this.readInput('adjustAmount')).trim()
+    if (!note) note = (await this.readInput('adjustNote')).trim()
+    const amount = Number(raw)
+    if (!raw || !isFinite(amount) || !amount) {
+      wx.showToast({ title: '请输入一个数字', icon: 'none' })
+      return
+    }
+    if (!note) {
+      wx.showToast({ title: '写一句加分原因吧', icon: 'none' })
+      return
+    }
+    const res = await store.adjustPoints(amount, note)
+    if (!res.ok) {
+      wx.showToast({ title: res.error || '没保存上', icon: 'none' })
+      return
+    }
+    this.setData({ adjustForm: null })
+    this.refresh()
+    wx.showToast({ title: '已' + (amount > 0 ? '加' : '扣') + Math.abs(amount) + '分', icon: 'none' })
   },
 
   /* ---------------- 语音小结 ---------------- */
@@ -515,7 +918,7 @@ Page({
           wx.showToast({ title: res.error || '没保存上，再试一次', icon: 'none' })
           return
         }
-        // 腾讯云 ASR：录完自动转文字（3 分钟整条也支持），失败不挡保存
+        // 腾讯云 ASR：录完自动转文字（10 分钟整条也支持），失败不挡保存
         if (res.voiceId) {
           self.autoTranscribe(day, id, res.voiceId)
         }
@@ -544,6 +947,161 @@ Page({
     } else {
       this.refresh()
     }
+  },
+
+  // 语音评论：双端都能看、都能评；列表带头像（用各自设置的头像）、称呼
+  openCommentBox(itemId, voiceId) {
+    const found = this.findVoice(itemId, voiceId)
+    if (!found) return
+    const doc = store.getDoc()
+    const profile = (doc && doc.profile) || {}
+    const fam = store.getFamily() || {}
+    const myUid = store.sessionUid() || 'me'
+    const amParent = store.getRole() === 'parent'
+    const list = (found.voice.comments || []).map(function (c) {
+      const p = profileOf(profile, c.uid, c.role)
+      return {
+        id: c.id,
+        who:
+          (p && p.label) || (c.role === 'parent' ? '家长' : fam.childName || '孩子'),
+        role: c.role,
+        avatar: (p && p.avatar) || (c.role === 'parent' ? '👨‍👩‍👧' : '🧒'),
+        text: c.text,
+        when: fmtWhen(c.at),
+        // 同账号同身份才算自己的；家长能删任何人的
+        mine: c.uid === myUid && (c.role === 'parent') === amParent
+      }
+    })
+    this.setData({
+      commentBox: { itemId: itemId, voiceId: voiceId, title: found.item.title, list: list },
+      commentInput: ''
+    })
+  },
+
+  onVoiceComment(e) {
+    const itemId = e.currentTarget.dataset.item
+    const voiceId = e.currentTarget.dataset.voice
+    if (!itemId || !voiceId) return
+    this.openCommentBox(itemId, voiceId)
+  },
+
+  onCommentInput(e) {
+    this.setData({ commentInput: e.detail.value })
+  },
+
+  onCommentClose() {
+    this.setData({ commentBox: null, commentInput: '' })
+  },
+
+  async onCommentSend() {
+    const box = this.data.commentBox
+    const text = (this.data.commentInput || '').trim()
+    if (!box || !text) return
+    const r = await store.addVoiceComment(this.data.ov.day, box.itemId, box.voiceId, text)
+    if (!r.ok) {
+      wx.showToast({ title: r.error || '没发出去，再试一次', icon: 'none' })
+      return
+    }
+    this.refresh()
+    this.openCommentBox(box.itemId, box.voiceId)
+    wx.showToast({ title: '发出去了', icon: 'none' })
+  },
+
+  // 删评论：家长删任何人的，孩子删自己的
+  async onCommentDelete(e) {
+    const box = this.data.commentBox
+    const id = e.currentTarget.dataset.id
+    if (!box || !id) return
+    const r = await store.removeVoiceComment(this.data.ov.day, box.itemId, box.voiceId, id)
+    if (!r.ok) {
+      wx.showToast({ title: r.error || '没删成', icon: 'none' })
+      return
+    }
+    this.refresh()
+    this.openCommentBox(box.itemId, box.voiceId)
+    wx.showToast({ title: '删掉了', icon: 'none' })
+  },
+
+  /* ---------------- 家庭留言板 ---------------- */
+
+  // 顶部预览行：置顶公告优先，其次最新一条留言；都没有返回 null
+  buildNotePreview() {
+    const notes = store.listNotes()
+    if (!notes.length) return null
+    const doc = store.getDoc()
+    const profile = (doc && doc.profile) || {}
+    const top = notes[0]
+    const shaped = shapeNote(top, profile, store.sessionUid() || 'me', store.getRole())
+    return {
+      id: shaped.id,
+      avatar: shaped.avatar,
+      who: shaped.who,
+      text: shaped.text,
+      pinned: shaped.pinned,
+      count: notes.length
+    }
+  },
+
+  openNoteSheet() {
+    const doc = store.getDoc()
+    const profile = (doc && doc.profile) || {}
+    const myUid = store.sessionUid() || 'me'
+    const role = store.getRole()
+    const list = store.listNotes().map(function (n) {
+      return shapeNote(n, profile, myUid, role)
+    })
+    this.setData({ noteSheet: { list: list }, noteInput: '' })
+  },
+
+  onNoteTap() {
+    this.openNoteSheet()
+  },
+
+  onNoteInput(e) {
+    this.setData({ noteInput: e.detail.value })
+  },
+
+  onNoteClose() {
+    this.setData({ noteSheet: null, noteInput: '' })
+  },
+
+  async onNoteSend() {
+    const text = (this.data.noteInput || '').trim()
+    if (!text) return
+    const r = await store.addNote(text)
+    if (!r.ok) {
+      wx.showToast({ title: r.error || '没发出去，再试一次', icon: 'none' })
+      return
+    }
+    this.refresh()
+    this.openNoteSheet()
+    wx.showToast({ title: '发出去了', icon: 'none' })
+  },
+
+  // 家长置顶/取消一条公告
+  async onNotePin(e) {
+    const id = e.currentTarget.dataset.id
+    if (!id) return
+    const r = await store.pinNote(id)
+    if (!r.ok) {
+      wx.showToast({ title: r.error || '置顶失败', icon: 'none' })
+      return
+    }
+    this.refresh()
+    this.openNoteSheet()
+    wx.showToast({ title: r.pinned ? '已置顶，会一直显示在顶部' : '已取消置顶', icon: 'none' })
+  },
+
+  async onNoteDelete(e) {
+    const id = e.currentTarget.dataset.id
+    if (!id) return
+    const r = await store.removeNote(id)
+    if (!r.ok) {
+      wx.showToast({ title: r.error || '没删成', icon: 'none' })
+      return
+    }
+    this.refresh()
+    this.openNoteSheet()
   },
 
   // 找到语音所在条目和语音对象
@@ -577,9 +1135,11 @@ Page({
       return
     }
     this.setData({ transcribingId: voiceId })
+    this.syncChips()
     const path = this.findVoicePath(voiceId)
     const res = await asr.transcribe(path)
     this.setData({ transcribingId: '' })
+    this.syncChips()
     if (res.ok && res.text) {
       const r = await store.setVoiceText(this.data.ov.day, itemId, voiceId, res.text)
       this.refresh()
@@ -617,6 +1177,53 @@ Page({
     this.setData({ textViewer: null })
   },
 
+  // 收起态：标题后的一行小按钮统一分发到原来的语音处理函数
+  onChipTap(e) {
+    const d = e.currentTarget.dataset
+    const ev = { currentTarget: { dataset: { id: d.voice, item: d.item, voice: d.voice, path: d.path } } }
+    switch (d.type) {
+      case 'play': this.onVoicePlay(ev); break
+      case 'like': this.onVoiceLike(ev); break
+      case 'text': this.onVoiceShowText(ev); break
+      case 'comment': this.onVoiceComment(ev); break
+      case 'trans': this.onVoiceTranscribe(ev); break
+      default: break
+    }
+  },
+
+  onChipLongPress(e) {
+    if (e.currentTarget.dataset.type !== 'play') return
+    const d = e.currentTarget.dataset
+    this.onVoiceDelete({ currentTarget: { dataset: { id: d.voice, item: d.item, path: d.path } } })
+  },
+
+  onChipsExpand(e) {
+    const id = e.currentTarget.dataset.id
+    const m = Object.assign({}, this.data.expanded)
+    m[id] = true
+    this.setData({ expanded: m })
+  },
+
+  onChipsCollapse(e) {
+    const id = e.currentTarget.dataset.id
+    const m = Object.assign({}, this.data.expanded)
+    delete m[id]
+    this.setData({ expanded: m })
+  },
+
+  // 播放/转文字等只改局部状态时，同步刷新小按钮图标（🔊 / 转文字中…）
+  syncChips() {
+    if (!this.data.ov) return
+    this.setData({
+      'ov.groups': decorateGroups(this.data.ov.groups, {
+        role: this.data.role,
+        playingId: this.data.playingId,
+        transcribingId: this.data.transcribingId,
+        likePopId: this.data.likePopId
+      })
+    })
+  },
+
   // 学生和家长：播放一段语音小结
   onVoicePlay(e) {
     const id = e.currentTarget.dataset.id
@@ -625,20 +1232,24 @@ Page({
     if (this.data.playingId === id) {
       voice.stopPlay()
       this.setData({ playingId: '' })
+      this.syncChips()
       return
     }
     const self = this
     voice
       .play(path, function () {
         self.setData({ playingId: '' })
+        self.syncChips()
       })
       .then((res) => {
         if (!res.ok) {
           this.setData({ playingId: '' })
+          this.syncChips()
           wx.showToast({ title: res.error || '播放失败', icon: 'none' })
           return
         }
         self.setData({ playingId: id })
+        self.syncChips()
       })
   },
 
@@ -681,8 +1292,12 @@ Page({
     if (res.liked) {
       wx.vibrateShort({ type: 'light' })
       this.setData({ likePopId: voiceId })
+      this.syncChips()
       setTimeout(() => {
-        if (this.data.likePopId === voiceId) this.setData({ likePopId: '' })
+        if (this.data.likePopId === voiceId) {
+          this.setData({ likePopId: '' })
+          this.syncChips()
+        }
       }, 500)
     } else {
       wx.showToast({ title: '已取消赞（-1 分）', icon: 'none' })

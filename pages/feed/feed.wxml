@@ -1,0 +1,46 @@
+<view class="page-plain">
+  <view class="hd">
+    <view class="h1">家庭动态</view>
+    <view class="muted">消息和家里发生的事，都在这里</view>
+  </view>
+
+  <view class="feed-tabs">
+    <view class="feed-tab {{tab === 'mine' ? 'on' : ''}}" data-tab="mine" bindtap="switchTab">
+      与我相关<text class="ft-badge" wx:if="{{unread > 0}}">{{unread}}</text>
+    </view>
+    <view class="feed-tab {{tab === 'all' ? 'on' : ''}}" data-tab="all" bindtap="switchTab">全部动态</view>
+  </view>
+
+  <view class="feed-card" wx:if="{{tab === 'mine'}}">
+    <view class="feed-empty" wx:if="{{!notices.length}}">还没有消息，家人互动后会出现在这里</view>
+    <view
+      class="notice-item {{item.unread ? 'unread' : ''}}"
+      wx:for="{{notices}}"
+      wx:key="id"
+      data-type="{{item.refType}}"
+      bindtap="onItemTap"
+    >
+      <view class="ni-icon">{{item.icon}}</view>
+      <view class="ni-main">
+        <view class="ni-text">{{item.text}}</view>
+        <view class="ni-sub">{{item.fromName}} · {{item.when}}</view>
+      </view>
+      <view class="ni-dot" wx:if="{{item.unread}}"></view>
+    </view>
+  </view>
+
+  <view class="feed-card" wx:else>
+    <view class="feed-empty" wx:if="{{!activities.length}}">还没有记录，有操作后这里就有流水了</view>
+    <view class="log-item" wx:for="{{activities}}" wx:key="id">
+      <view class="log-main">
+        <view class="log-line1">
+          <text class="log-who {{item.isParent ? 'p' : 'c'}}">{{item.who}}</text>
+          <text class="log-action">{{item.action}}</text>
+          <text class="log-note" wx:if="{{item.detail}}">{{item.detail}}</text>
+        </view>
+        <view class="log-when">{{item.when}}</view>
+      </view>
+      <view class="log-amount {{item.amountClass}}">{{item.amountText}}</view>
+    </view>
+  </view>
+</view>

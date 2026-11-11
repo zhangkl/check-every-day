@@ -50,7 +50,7 @@
   <block wx:else>
     <view class="card done-card" wx:if="{{createdCode}}">
       <view class="h3">家庭建好了</view>
-      <view class="tiny note">把这个邀请码告诉孩子，她在自己的手机上输入就能加入，之后两边的打卡和积分会自动同步。</view>
+      <view class="tiny note">全家用这一个码：把这个邀请码告诉家人，加入时自己选孩子 / 家长身份，之后打卡和积分自动同步。</view>
       <view class="code-box" bindtap="copyCode">{{createdCode}}</view>
       <view class="tiny center">点一下复制</view>
       <button class="btn btn-primary wide" bindtap="enterApp">开始使用</button>
@@ -90,7 +90,7 @@
       </view>
 
       <view class="card" wx:else>
-        <view class="h3">输入家里的邀请码</view>
+        <view class="h3">{{invited ? '家人邀请你加入 🎉' : '输入家里的邀请码'}}</view>
         <view class="field">
           <view class="label">6 位邀请码</view>
           <input
@@ -102,7 +102,26 @@
             bindinput="onJoinCode"
           />
         </view>
-        <view class="tiny note">邀请码在爸爸妈妈的手机上，「我的」页面里可以看到。</view>
+        <view class="field">
+          <view class="label">我的身份</view>
+          <view class="role-row">
+            <view class="role-chip {{joinRole === 'child' ? 'on' : ''}}" data-role="child" bindtap="onJoinRole">🧒 我是孩子</view>
+            <view class="role-chip {{joinRole === 'parent' ? 'on' : ''}}" data-role="parent" bindtap="onJoinRole">👨‍👩‍👧 我是家长</view>
+          </view>
+        </view>
+        <view class="field" wx:if="{{joinRole === 'parent'}}">
+          <view class="label">家长密码（家里没设置就留空）</view>
+          <input
+            class="input"
+            password
+            value="{{joinPin}}"
+            placeholder="防止孩子冒充家长，设了就要核对"
+            placeholder-class="ph"
+            maxlength="8"
+            bindinput="onJoinPin"
+          />
+        </view>
+        <view class="tiny note">{{invited ? '邀请码已帮你填好，选好身份点下面按钮就加入啦。' : '邀请码在爸爸妈妈的手机上，「我的」页面里可以看到。'}}</view>
       </view>
 
       <view class="err" wx:if="{{error}}">{{error}}</view>
@@ -120,7 +139,7 @@
         bindtap="onJoin"
         loading="{{submitting}}"
         disabled="{{submitting}}"
-      >加入家庭</button>
+      >{{invited ? '接受邀请，加入家庭' : '加入家庭'}}</button>
     </block>
 
     <view class="foot tiny">任务清单、打卡记录和积分都保存在云端，换手机也不会丢。</view>

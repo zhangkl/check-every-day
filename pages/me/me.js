@@ -1,6 +1,15 @@
 const store = require('../../utils/store')
 const guard = require('../../utils/guard')
 
+// 全量 emoji 头像池：空格分隔后切开，滑动网格随便选；也支持输入框粘贴任意 emoji
+const EMOJIS = (
+  '😀 😄 😁 😆 😅 😂 🤣 😊 😇 🙂 😉 😍 🥰 😘 😋 😝 😜 🤪 🤨 🧐 🤓 😎 🥳 😏 😒 😞 😔 😟 🙁 ☹️ 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤯 😳 🥵 🥶 😱 😨 😰 🤗 🤔 🤭 🤫 😶 😐 😑 🙄 😯 😴 🤤 🥱 🤐 🥴 🤢 🤮 😷 🤒 🤕 🥸 🤠 🤑 😈 👿 🤡 💩 👻 💀 👽 🤖 🎃 ' +
+  '🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🐔 🐧 🐦 🐤 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🦋 🐌 🐞 🐢 🐍 🦎 🐙 🦑 🦐 🦀 🐡 🐠 🐟 🐬 🐳 🦈 🐊 🐆 🦓 🦍 🐘 🦛 🦏 🐪 🦒 🦘 🐃 🐄 🐎 🐖 🐏 🐑 🦙 🐐 🦌 🐕 🐩 🐈 🐓 🦃 🦚 🦜 🦢 🕊 🐇 🦝 🦔 ' +
+  '🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🍆 🥑 🥦 🌽 🥕 🥔 🍞 🥐 🥖 🧇 🥞 🧀 🍗 🍖 🌭 🍔 🍟 🍕 🥪 🌮 🌯 🥗 🍝 🍜 🍲 🍛 🍣 🍱 🥟 🍤 🍙 🍚 🍥 🍢 🍡 🍧 🍨 🍦 🥧 🧁 🍰 🎂 🍮 🍭 🍬 🍫 🍿 🍩 🍪 ☕ 🍵 🧃 🥤 🧋 🥛 ' +
+  '⚽ 🏀 🏈 ⚾ 🎾 🏐 🏉 🎱 🏓 🏸 🏹 🎣 🥊 🎯 🎮 🕹 🎲 🧩 🎨 🎭 📚 📖 ✏️ 🖊 🎵 🎶 🎸 🎹 🎺 🎻 🥁 🎤 🎧 🚀 ✈️ 🚗 🚕 🚙 🚌 🚲 ⛵ 🚢 🏝 🗻 🎡 🎢 🎠 ' +
+  '⭐ 🌟 ✨ ⚡ 🔥 🌈 ☀️ 🌤 🌙 💫 🪐 🌍 💎 🔮 🎈 🎉 🎊 🎁 🏅 🏆 🥇 🥈 🥉 👑 🎀 ❤️ 🧡 💛 💚 💙 💜 🖤 💝 💐 🌹 🌻 🌸 🌺 🌷 🌱 🌲 🌳 🍀 🌊'
+).split(' ')
+
 Page({
   data: {
     role: 'child',
@@ -12,7 +21,17 @@ Page({
     pendingCount: 0,
     hasPin: false,
     inviteCode: '',
+    label: '',
+    famSheet: false,
+    famName: '',
+    famChild: '',
+    famLabel: '',
+    famMembers: [],
     account: '',
+    avatar: '',
+    emojiList: EMOJIS,
+    customEmoji: '',
+    avatarSheet: false,
     confirm: null
   },
 
@@ -38,21 +57,156 @@ Page({
       streak: store.streak(),
       hasPin: !!store.getPin(),
       inviteCode: store.getInviteCode(),
+      label: store.getMyLabel(),
       account: store.sessionLabel(),
+      avatar: store.getMyAvatar(),
       pendingCount: store.listRedemptions().filter(function (r) {
         return r.status === 'pending'
+      }).length + store.listWishes().filter(function (w) {
+        return w.status === 'pending'
       }).length
     })
   },
 
+  // 头像：点头像 → emoji 全池选择（家长端/学生端各自一份，互不影响）
+  onEditAvatar() {
+    this.setData({ avatarSheet: true, customEmoji: '' })
+  },
+
+  onAvatarClose() {
+    this.setData({ avatarSheet: false })
+  },
+
+  async onPickAvatar(e) {
+    const a = e.currentTarget.dataset.a
+    if (!a) return
+    const res = await store.setMyAvatar(a)
+    if (!res.ok) {
+      wx.showToast({ title: res.error || '没换上，再试一次', icon: 'none' })
+      return
+    }
+    this.setData({ avatar: res.avatar, avatarSheet: false })
+    wx.showToast({ title: '换好了', icon: 'none' })
+  },
+
+  onCustomEmoji(e) {
+    this.setData({ customEmoji: e.detail.value })
+  },
+
+  async onUseCustom() {
+    let v = (this.data.customEmoji || '').trim()
+    if (!v) {
+      // 兜底：直接从输入框节点读实时值（个别环境 bindinput 不触发）
+      try {
+        const val = await new Promise((resolve) => {
+          wx.createSelectorQuery()
+            .in(this)
+            .select('#emojiField')
+            .fields({ properties: ['value'] }, (r) => resolve(r && r.value))
+            .exec()
+        })
+        if (val) v = String(val).trim()
+      } catch (e) {}
+    }
+    if (!v) {
+      wx.showToast({ title: '先选一个或输入 emoji', icon: 'none' })
+      return
+    }
+    const res = await store.setMyAvatar(v)
+    if (!res.ok) {
+      wx.showToast({ title: res.error || '没换上，再试一次', icon: 'none' })
+      return
+    }
+    this.setData({ avatar: res.avatar, avatarSheet: false, customEmoji: '' })
+    wx.showToast({ title: '换好了', icon: 'none' })
+  },
+
   onCopyCode() {
-    if (!this.data.inviteCode) return
+    const code = this.data.inviteCode
+    if (!code) return
     wx.setClipboardData({
-      data: this.data.inviteCode,
+      data: code,
       success() {
         wx.showToast({ title: '已复制，发给家人', icon: 'none' })
       }
     })
+  },
+
+  // 微信原生分享：一张家庭码，对方点开填码加入，自己选孩子/家长身份
+  onShareAppMessage(res) {
+    return {
+      title: '邀请你加入「' + (this.data.family.name || '我们家') + '」，一起养成好习惯',
+      path: '/pages/setup/setup?join=' + (this.data.inviteCode || '')
+    }
+  },
+
+  // 家庭信息：点家庭名弹出，改家庭名称、孩子昵称和称呼（仅家长）；同时展示家庭成员
+  onEditFamily() {
+    if (this.data.role !== 'parent') return
+    this.setData({
+      famSheet: true,
+      famName: this.data.family.name || '',
+      famChild: this.data.family.childName || '',
+      famLabel: this.data.label || '',
+      famMembers: store.listMembers()
+    })
+  },
+
+  onFamName(e) {
+    this.setData({ famName: e.detail.value })
+  },
+
+  onFamChild(e) {
+    this.setData({ famChild: e.detail.value })
+  },
+
+  onFamLabel(e) {
+    this.setData({ famLabel: e.detail.value })
+  },
+
+  onFamCancel() {
+    this.setData({ famSheet: false })
+  },
+
+  // 兜底：从输入框节点读实时值（个别环境 bindinput 不触发）
+  async readField(id) {
+    try {
+      const r = await new Promise((resolve) => {
+        wx.createSelectorQuery()
+          .in(this)
+          .select('#' + id)
+          .fields({ properties: ['value'] }, (x) => resolve(x && x.value))
+          .exec()
+      })
+      return r == null ? '' : String(r)
+    } catch (e) {
+      return ''
+    }
+  },
+
+  async onFamSave() {
+    let name = (this.data.famName || '').trim()
+    let child = (this.data.famChild || '').trim()
+    let label = (this.data.famLabel || '').trim()
+    if (!name) name = (await this.readField('famNameField')).trim()
+    if (!child) child = (await this.readField('famChildField')).trim()
+    if (!label) label = (await this.readField('famLabelField')).trim()
+    const res = await store.setFamilyInfo(name, child)
+    if (!res.ok) {
+      wx.showToast({ title: res.error || '没存上，再试一次', icon: 'none' })
+      return
+    }
+    // 称呼留空 = 保持原称呼不变；写了就一起存
+    if (label) {
+      const lr = await store.setMyLabel(label)
+      if (!lr.ok) {
+        wx.showToast({ title: lr.error || '称呼没存上', icon: 'none' })
+        return
+      }
+    }
+    this.setData({ famSheet: false })
+    this.refresh()
+    wx.showToast({ title: '改好了', icon: 'none' })
   },
 
   goShop() {

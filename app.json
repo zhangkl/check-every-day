@@ -4,6 +4,7 @@
     "pages/shop/shop",
     "pages/plan/plan",
     "pages/me/me",
+    "pages/feed/feed",
     "pages/login/login",
     "pages/setup/setup",
     "pages/parent-tasks/parent-tasks",

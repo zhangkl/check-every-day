@@ -1,53 +1,100 @@
 <view class="page" wx:if="{{ready}}">
   <view class="card hero2">
-    <view class="hero-line">
-      <view class="hero-title">{{heroTitle}}</view>
-      <view class="streak-chip" wx:if="{{role === 'child' && ov.streak > 0}}">🔥 {{ov.streak}} 天</view>
-      <view class="pill pill-pink" wx:elif="{{role === 'parent'}}">家长模式</view>
-    </view>
-    <view class="bar">
-      <view class="bar-in" style="width:{{ov.percent}}%"></view>
-    </view>
-    <view class="hero-meta">
-      <view class="meta-line">{{ov.done}}/{{ov.total}} 项 · 已得 {{ov.earned}} 分 · 攒了 {{ov.balance}} 分</view>
-      <view class="meta-line late" wx:if="{{lateText && ov.percent < 100}}">{{lateText}}</view>
-    </view>
-  </view>
-
-  <view class="quick" wx:if="{{role === 'parent'}}">
-    <view class="quick-item" bindtap="goTasks">
-      <view class="q-icon">🗂</view>
-      <view class="q-label">清单配置</view>
-    </view>
-    <view class="quick-item" bindtap="goApprove">
-      <view class="q-icon">📮</view>
-      <view class="q-label">待审批</view>
-      <view class="q-badge" wx:if="{{pending > 0}}">{{pending}}</view>
-    </view>
-    <view class="quick-item" bindtap="onAddExtra">
-      <view class="q-icon">➕</view>
-      <view class="q-label">临时加项</view>
-    </view>
-    <view class="quick-item" bindtap="onAdjust">
-      <view class="q-icon">🎯</view>
-      <view class="q-label">调积分</view>
-    </view>
-  </view>
-
-  <view class="group" wx:for="{{ov.groups}}" wx:key="key">
-    <view class="group-hd">
-      <view class="emoji">{{item.icon}}</view>
-      <view class="grow">
-        <view class="h3">{{item.title}}</view>
-        <view class="tiny">{{item.doneCount}}/{{item.total}} 项 · {{item.pointsEarned}}/{{item.pointsTotal}} 分</view>
+    <view class="hero-row">
+      <view class="hero-avatar" bindtap="goMe">
+        <text class="hero-avatar-emoji">{{avatar || (role === 'child' ? '🧒' : '👨‍👩‍👧')}}</text>
       </view>
-      <view class="g-badge {{item.allDone ? 'ok' : ''}}">{{item.percent}}%</view>
+      <view class="hero-main">
+        <view class="hero-main-row">
+          <view class="hero-main-col">
+            <view class="hero-line">
+              <view class="hero-title">{{heroTitle}}</view>
+              <view class="streak-chip" wx:if="{{role === 'child' && ov.streak > 0}}">🔥 {{ov.streak}} 天</view>
+              <view class="pill pill-pink" wx:elif="{{role === 'parent'}}">家长模式</view>
+            </view>
+            <view class="bar">
+              <view class="bar-in" style="width:{{ov.percent}}%"></view>
+            </view>
+          </view>
+          <view class="tips-btn" bindtap="onTipsOpen">💡</view>
+        </view>
+      </view>
+    </view>
+    <view class="hero-bottom {{role === 'child' ? 'child' : ''}}">
+      <view class="hb-count">{{ov.done}}/{{ov.total}} 项</view>
+      <view class="hb-actions" wx:if="{{role === 'parent'}}">
+        <view class="hb-pill add" bindtap="onAddExtra">＋ 临时加项</view>
+        <view class="hb-pill adjust" bindtap="onAdjust">⚖ 调积分</view>
+        <view class="hb-pill logs" bindtap="onOpenFeed" data-tab="all">🧾 查流水</view>
+      </view>
+      <view class="hb-poem" wx:if="{{role === 'child' && poem}}" bindtap="onPoemTap">
+        <view class="poem-zh">{{poem.zh}}</view>
+      </view>
+      <view class="hb-earned">已得 {{ov.earned}} 分</view>
+    </view>
+    <view class="hero-late" wx:if="{{lateText && ov.percent < 100}}">{{lateText}}</view>
+  </view>
+
+  <!-- 家庭留言板预览行：置顶公告常驻，点开看全部 -->
+  <!-- 待处理提醒：有兑换/心愿待审批时才出现，点进审批中心 -->
+  <view class="approve-tip" wx:if="{{role === 'parent' && pending > 0}}" bindtap="goApprove">
+    <text class="at-icon">📮</text>
+    <text class="at-text">有 {{pending}} 条兑换 / 心愿待处理</text>
+    <text class="at-arrow">›</text>
+  </view>
+
+  <view wx:if="{{!notePreview}}" class="note-slim" bindtap="onNoteTap">
+    <view class="ns-icon">✏️</view>
+    <view class="ns-text">家里说句话，家人都能看到</view>
+    <view class="ns-plus">＋</view>
+  </view>
+  <view wx:else class="note-banner" bindtap="onNoteTap">
+    <view class="nb-avatar">{{notePreview.avatar}}</view>
+    <view class="nb-text">
+      <text class="nb-clip">{{(notePreview.pinned ? '📢 ' : '') + notePreview.who + '：' + notePreview.text}}</text>
+    </view>
+    <view class="nb-count" wx:if="{{notePreview.count > 1}}">{{notePreview.count}}</view>
+    <view class="nb-plus">＋</view>
+  </view>
+
+  <!-- 家庭动态入口：消息 + 操作流水，两端常驻的一行细字 -->
+  <view class="notice-line" bindtap="onOpenFeed">
+    <text class="nl-icon">🔔</text>
+    <text class="nl-text">{{noticeLatest || '看看家里最近的动态'}}</text>
+    <text class="nl-badge" wx:if="{{noticeUnread > 0}}">{{noticeUnread}}</text>
+    <text class="nl-arrow">›</text>
+  </view>
+
+  <view class="gdeck" wx:if="{{ov.groups && ov.groups.length}}">
+    <block wx:for="{{[activeIdx]}}" wx:key="*this">
+    <view class="group gcard {{animDir === 'l' ? 'anim-l' : 'anim'}}" wx:if="{{ov.groups[activeIdx]}}">
+    <view class="gpanel">
+    <scroll-view scroll-x class="gtabs-scroll" show-scrollbar="{{false}}">
+      <view
+        class="gtab {{activeIdx === index ? 'on' : ''}}"
+        wx:for="{{ov.groups}}"
+        wx:key="key"
+        data-idx="{{index}}"
+        bindtap="onGroupTab"
+      >
+        <view class="gtab-name">{{item.tabTitle}}</view>
+        <view class="gtab-meta">{{item.doneCount}}/{{item.total}}</view>
+      </view>
+    </scroll-view>
+    <view class="gbody {{activeIdx === 0 ? 'flush-l' : ''}} {{activeIdx === ov.groups.length - 1 ? 'flush-r' : ''}}">
+    <view class="ghead">
+      <view class="ghead-title">已得 {{ov.groups[activeIdx].pointsEarned}} 分</view>
+      <view class="ghead-meta">{{ov.groups[activeIdx].allDone ? '全部完成 🎉' : '还差 ' + (ov.groups[activeIdx].pointsTotal - ov.groups[activeIdx].pointsEarned) + ' 分'}}</view>
     </view>
 
-    <view class="items">
+    <view
+      class="items"
+      bindtouchstart="onCardTouchStart"
+      bindtouchend="onCardTouchEnd"
+    >
       <view
         class="item {{it.done ? 'done' : ''}} {{it.status === 'pending' ? 'pending' : ''}} {{it.status === 'del-pending' ? 'delreq' : ''}}"
-        wx:for="{{item.items}}"
+        wx:for="{{ov.groups[activeIdx].items}}"
         wx:for-item="it"
         wx:key="id"
         data-id="{{it.id}}"
@@ -57,14 +104,30 @@
       >
         <view class="box">{{it.done ? '✓' : ''}}</view>
         <view class="grow">
-          <view class="it-title">{{it.title}}<text class="pending-tag" wx:if="{{it.status === 'pending'}}">待家长同意</text><text class="pending-tag del" wx:elif="{{it.status === 'del-pending'}}">{{role === 'parent' ? '孩子申请删除' : '待同意删除'}}</text></view>
+          <view class="it-head">
+            <view class="it-title">{{it.title}}<text class="pending-tag" wx:if="{{it.status === 'pending'}}">待家长同意</text><text class="pending-tag del" wx:elif="{{it.status === 'del-pending'}}">{{role === 'parent' ? '孩子申请删除' : '待同意删除'}}</text></view>
+            <view class="inline-chips" wx:if="{{!expanded[it.id] && it.chips && it.chips.length}}">
+              <view
+                class="mini-chip {{c.cls}}"
+                wx:for="{{it.chips}}"
+                wx:for-item="c"
+                wx:key="key"
+                data-type="{{c.type}}"
+                data-item="{{c.item}}"
+                data-voice="{{c.voice}}"
+                data-path="{{c.path}}"
+                catchtap="onChipTap"
+                catchlongpress="onChipLongPress"
+              >{{c.label}}</view>
+              <view class="mini-chip more" wx:if="{{it.chipsMore}}" data-id="{{it.id}}" catchtap="onChipsExpand">…</view>
+            </view>
+          </view>
           <view class="tiny" wx:if="{{role === 'parent' && it.done}}">{{it.time}} 勾选</view>
-          <view class="voice-row" wx:if="{{it.voices && it.voices.length}}">
+          <view class="voice-row expanded" wx:if="{{expanded[it.id] && it.voices && it.voices.length}}">
             <view
               class="voice-line"
               wx:for="{{it.voices}}"
               wx:for-item="v"
-              wx:for-index="vi"
               wx:key="id"
             >
               <view
@@ -80,12 +143,11 @@
               </view>
               <view
                 class="like-btn {{v.liked ? 'on' : ''}} {{likePopId === v.id ? 'pop' : ''}}"
-                wx:if="{{role === 'parent'}}"
+                wx:if="{{role === 'parent' || v.liked}}"
                 data-item="{{it.id}}"
                 data-voice="{{v.id}}"
                 catchtap="onVoiceLike"
               >{{v.liked ? '👍 1' : '👍'}}</view>
-              <view class="tiny vc-hint" wx:if="{{role === 'parent' && vi === 0}}">点开听听她怎么说</view>
               <view class="tiny vc-transcribing" wx:if="{{transcribingId === v.id}}">正在转文字…</view>
               <view
                 class="text-btn"
@@ -95,6 +157,12 @@
                 catchtap="onVoiceShowText"
               >📝</view>
               <view
+                class="text-btn comment-btn"
+                data-item="{{it.id}}"
+                data-voice="{{v.id}}"
+                catchtap="onVoiceComment"
+              >💬{{v.comments && v.comments.length ? v.comments.length : ''}}</view>
+              <view
                 class="voice-trans-btn"
                 wx:if="{{!v.text && transcribingId !== v.id}}"
                 data-item="{{it.id}}"
@@ -102,10 +170,10 @@
                 catchtap="onVoiceTranscribe"
               >转文字</view>
             </view>
-            <view class="tiny rec-tip" wx:if="{{recordingId === it.id}}">正在说…再点一下结束，说完自动转文字</view>
-            <view class="tiny rec-tip" wx:elif="{{uploadingId === it.id}}">正在保存…</view>
-            <view class="tiny rec-tip" wx:elif="{{transcribingId && (!it.voices || !it.voices.length)}}">正在转文字…</view>
+            <view class="mini-chip more" data-id="{{it.id}}" catchtap="onChipsCollapse">收起</view>
           </view>
+          <view class="tiny rec-tip" wx:if="{{it.voices && it.voices.length && recordingId === it.id}}">正在说…再点一下结束，说完自动转文字</view>
+          <view class="tiny rec-tip" wx:elif="{{it.voices && it.voices.length && uploadingId === it.id}}">正在保存…</view>
           <view class="tiny rec-tip" wx:if="{{!it.voices || !it.voices.length}}">{{recordingId === it.id ? '正在说…再点一下结束，说完自动转文字' : (uploadingId === it.id ? '正在保存…' : '')}}</view>
         </view>
         <view
@@ -114,20 +182,21 @@
           data-id="{{it.id}}"
           catchtap="onMic"
         >{{recordingId === it.id ? '■' : '🎙'}}</view>
-        <view class="it-points {{it.done ? 'on' : ''}}" wx:if="{{!(role === 'parent' && it.done)}}">{{it.points}} 分</view>
+        <view class="it-points {{it.done ? 'on' : ''}}" wx:if="{{!(role === 'parent' && it.done)}}">{{it.points}}分</view>
         <view wx:if="{{floatId === it.id}}" class="float">{{floatText}}</view>
       </view>
     </view>
+    </view>
+  </view>
+  </view>
+  </block>
   </view>
 
   <view class="add-extra" wx:if="{{role === 'child'}}" bindtap="onChildAdd">＋ 自己加一项（家长同意后生效）</view>
 
-  <view class="tail tiny" wx:if="{{role === 'child'}}">🎙 说完自动转文字；长按语音可删掉重说；长按未完成项可申请删除。</view>
-  <view class="tail tiny" wx:else>点 ✓ 可同意加项或删除；长按可改分值、拒绝、删除或撤销；点 👍 点赞 +1 分，再点一下取消。</view>
-
-  <view class="ft">
-    <view class="hd-date">{{ov.pretty}}</view>
-    <view class="corner-btn" bindtap="goMe">⚙️</view>
+  <view class="ft" bindtap="onQuoteTap">
+    <view class="quote-zh">{{quote.zh}}</view>
+    <view class="quote-sub" wx:if="{{quote.en}}">{{quote.en}}</view>
   </view>
 </view>
 
@@ -141,6 +210,13 @@
   <view class="cel-title">今天全部完成</view>
   <view class="cel-sub">今天的你，比昨天靠谱一点点。</view>
 </view>
+
+<view class="like-cele" wx:if="{{likeCele}}" catchtap="hideLikeCele">
+  <view class="lc-heart">❤️</view>
+  <view class="lc-text">{{likeCele.text}}</view>
+</view>
+
+<!-- 消息与操作流水已融合到独立页面 /pages/feed/feed -->
 
 <view class="mask" wx:if="{{confirm}}" catchtap="onConfirmCancel">
   <view class="sheet" catchtap="noop">
@@ -169,6 +245,22 @@
   </view>
 </view>
 
+<!-- 手动调整积分：分值 + 一句原因，原因会进流水和孩子的消息 -->
+<view class="mask" wx:if="{{adjustForm}}" catchtap="onAdjustCancel">
+  <view class="sheet" catchtap="noop">
+    <view class="sheet-title">手动调整积分</view>
+    <view class="adjust-label">分值</view>
+    <input id="adjustAmount" class="sheet-input" placeholder="正数加分，负数扣分，例如 5" value="{{adjustForm.amount}}" maxlength="6" bindinput="onAdjustAmount" bindblur="onAdjustAmount" />
+    <view class="adjust-label">原因</view>
+    <input id="adjustNote" class="sheet-input" placeholder="比如 主动多练了口算" value="{{adjustForm.note}}" maxlength="12" bindinput="onAdjustNote" bindblur="onAdjustNote" />
+    <view class="sheet-content small">写一句就好，孩子和流水里都能看到。</view>
+    <view class="sheet-btns">
+      <view class="sheet-btn" bindtap="onAdjustCancel">取消</view>
+      <view class="sheet-btn primary" bindtap="onAdjustOk">保存</view>
+    </view>
+  </view>
+</view>
+
 <view class="mask" wx:if="{{textViewer}}" catchtap="onTextClose">
   <view class="sheet text-sheet" catchtap="noop">
     <view class="sheet-title">{{textViewer.title}}</view>
@@ -177,6 +269,94 @@
     </scroll-view>
     <view class="sheet-btns">
       <view class="sheet-btn primary" bindtap="onTextClose">关闭</view>
+    </view>
+  </view>
+</view>
+
+<!-- 语音评论：双端可看可评 -->
+<view class="mask" wx:if="{{commentBox}}" catchtap="onCommentClose">
+  <view class="sheet comment-sheet" catchtap="noop">
+    <view class="sheet-title">{{commentBox.title}} · 评论</view>
+    <scroll-view scroll-y class="comment-scroll">
+      <view class="comment-empty" wx:if="{{!commentBox.list.length}}">还没有评论，说点什么吧</view>
+      <view class="comment-item" wx:for="{{commentBox.list}}" wx:key="id">
+        <view class="comment-avatar">{{item.avatar}}</view>
+        <view class="comment-main">
+          <view class="comment-hd">
+            <text class="comment-who {{item.role === 'parent' ? 'p' : 'c'}}">{{item.who}}</text>
+            <text class="comment-when">{{item.when}}</text>
+          </view>
+          <view class="comment-text">{{item.text}}</view>
+        </view>
+        <view class="note-ops">
+          <view class="note-op del" wx:if="{{role === 'parent' || item.mine}}" data-id="{{item.id}}" catchtap="onCommentDelete">🗑</view>
+        </view>
+      </view>
+    </scroll-view>
+    <view class="comment-input-row">
+      <input
+        class="comment-input"
+        placeholder="写点鼓励或想说的话"
+        value="{{commentInput}}"
+        maxlength="200"
+        bindinput="onCommentInput"
+        confirm-type="send"
+        bindconfirm="onCommentSend"
+      />
+      <view class="comment-send {{commentInput ? 'on' : ''}}" bindtap="onCommentSend">发送</view>
+    </view>
+  </view>
+</view>
+
+<!-- 家庭留言板：双端可发，家长可置顶公告、删任何条；孩子删自己的 -->
+<view class="mask" wx:if="{{noteSheet}}" catchtap="onNoteClose">
+  <view class="sheet note-sheet {{noteSheet.list.length ? '' : 'empty'}}" catchtap="noop">
+    <view class="sheet-title">家庭留言板</view>
+    <scroll-view scroll-y class="note-scroll">
+      <view class="comment-empty" wx:if="{{!noteSheet.list.length}}">还没有留言，说点什么吧</view>
+      <view class="note-item" wx:for="{{noteSheet.list}}" wx:key="id">
+        <view class="comment-avatar">{{item.avatar}}</view>
+        <view class="comment-main">
+          <view class="comment-hd">
+            <text class="comment-who {{item.role === 'parent' ? 'p' : 'c'}}">{{item.who}}</text>
+            <text class="note-pin-tag" wx:if="{{item.pinned}}">📢 公告</text>
+            <text class="comment-when">{{item.when}}</text>
+          </view>
+          <view class="comment-text">{{item.text}}</view>
+        </view>
+        <view class="note-ops">
+          <view class="note-op" wx:if="{{role === 'parent'}}" data-id="{{item.id}}" catchtap="onNotePin">📌</view>
+          <view class="note-op del" wx:if="{{role === 'parent' || item.mine}}" data-id="{{item.id}}" catchtap="onNoteDelete">🗑</view>
+        </view>
+      </view>
+    </scroll-view>
+    <view class="comment-input-row">
+      <input
+        class="comment-input"
+        placeholder="{{role === 'parent' ? '发个公告，孩子首页就能看到' : '说点什么吧'}}"
+        value="{{noteInput}}"
+        maxlength="50"
+        bindinput="onNoteInput"
+        confirm-type="send"
+        bindconfirm="onNoteSend"
+      />
+      <view class="comment-send {{noteInput ? 'on' : ''}}" bindtap="onNoteSend">发送</view>
+    </view>
+  </view>
+</view>
+
+<!-- 操作提示：按 1234 列清楚，双端内容不同 -->
+<view class="mask" wx:if="{{tipsSheet}}" catchtap="onTipsClose">
+  <view class="sheet tips-sheet" catchtap="noop">
+    <view class="sheet-title">操作提示</view>
+    <view class="tips-list">
+      <view class="tip-item" wx:for="{{tipsList}}" wx:key="*this">
+        <text class="tip-no">{{index + 1}}</text>
+        <text class="tip-text">{{item}}</text>
+      </view>
+    </view>
+    <view class="sheet-btns">
+      <view class="sheet-btn primary" bindtap="onTipsClose">知道啦</view>
     </view>
   </view>
 </view>

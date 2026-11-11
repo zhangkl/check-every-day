@@ -1,7 +1,7 @@
 <view class="page-plain">
   <view class="hd">
     <view class="h1">清单配置</view>
-    <view class="muted">改完之后，从明天开始生效</view>
+    <view class="muted">改完之后，当天就生效</view>
   </view>
 
   <view class="mode-tabs">

@@ -1,19 +1,14 @@
 <view class="page" wx:if="{{ready}}">
   <view class="card profile">
-    <view class="avatar">{{role === 'child' ? '🧒' : '👨‍👩‍👧'}}</view>
+    <view class="avatar-wrap" bindtap="onEditAvatar">
+      <view class="avatar"><text class="avatar-emoji">{{avatar || (role === 'child' ? '🧒' : '👨‍👩‍👧')}}</text></view>
+      <view class="avatar-edit">✏️</view>
+    </view>
     <view class="grow">
-      <view class="h2">{{family.name}}</view>
-      <view class="muted">{{family.childName}} · {{role === 'child' ? '学生端' : '家长端'}}{{isLocal ? ' · 本地' : ''}}</view>
+      <view class="h2" bindtap="onEditFamily">{{family.name}}<text class="fam-edit" wx:if="{{role === 'parent'}}">✏️</text></view>
+      <view class="muted">{{role === 'child' ? family.childName : (label || '家长')}} · {{role === 'child' ? '学生端' : '家长端'}}{{isLocal ? ' · 本地' : ''}}</view>
     </view>
     <view class="mini-stat">{{balance}} 分</view>
-  </view>
-
-  <view class="card invite" wx:if="{{!isLocal}}" bindtap="onCopyCode">
-    <view class="grow">
-      <view class="h3">家庭邀请码</view>
-      <view class="tiny">家人在自己手机上输入这个码就能加入</view>
-    </view>
-    <view class="invite-code">{{inviteCode || '——'}}</view>
   </view>
 
   <view class="card menu">
@@ -25,7 +20,7 @@
       </view>
       <view class="menu-item" bindtap="goApprove">
         <view class="mi-icon">📮</view>
-        <view class="grow body">审批中心</view>
+        <view class="grow body">兑换与心愿审批</view>
         <view class="mi-badge" wx:if="{{pendingCount > 0}}">{{pendingCount}}</view>
         <view class="mi-arrow">›</view>
       </view>
@@ -74,6 +69,12 @@
         <view class="mi-arrow">›</view>
       </view>
     </block>
+    <view class="menu-item invite-item" wx:if="{{!isLocal}}">
+      <view class="mi-icon">📨</view>
+      <view class="grow body">邀请加入</view>
+      <view class="invite-code sm" bindtap="onCopyCode">{{inviteCode || '——'}}</view>
+      <button class="invite-share" open-type="share" hover-class="share-btn-hover">邀请</button>
+    </view>
     <view class="menu-item" bindtap="onSignOut">
       <view class="mi-icon">🚪</view>
       <view class="grow body">{{isLocal ? '清空本地数据' : '退出登录'}}</view>
@@ -94,9 +95,44 @@
   <view class="tiny">正在同步你的记录…</view>
 </view>
 
+<!-- 头像选择：全 emoji 滑动网格 + 自定义输入；家长端/学生端各自一份 -->
+<view class="mask" wx:if="{{avatarSheet}}" catchtap="onAvatarClose">
+  <view class="sheet avatar-sheet" catchtap="noop">
+    <view class="sheet-title">选一个头像</view>
+    <view class="tiny avatar-role">当前身份：{{role === 'parent' ? '家长端' : '学生端'}} · 两端头像各自独立</view>
+    <scroll-view scroll-y class="emoji-scroll">
+      <view class="emoji-grid">
+        <view
+          class="emoji-opt {{avatar === e ? 'sel' : ''}}"
+          wx:for="{{emojiList}}"
+          wx:key="*this"
+          wx:for-item="e"
+          bindtap="onPickAvatar"
+          data-a="{{e}}"
+        ><text class="emoji-opt-t">{{e}}</text></view>
+      </view>
+    </scroll-view>
+    <view class="emoji-custom">
+      <input
+        id="emojiField"
+        class="sheet-input emoji-input"
+        placeholder="或在这里输入任意 emoji"
+        placeholder-class="ph"
+        value="{{customEmoji}}"
+        maxlength="16"
+        bindinput="onCustomEmoji"
+        bindconfirm="onUseCustom"
+      />
+      <view class="emoji-use {{customEmoji ? 'on' : ''}}" bindtap="onUseCustom">用这个</view>
+    </view>
+    <view class="sheet-btns">
+      <view class="sheet-btn" bindtap="onAvatarClose">关闭</view>
+    </view>
+  </view>
+</view>
+
 <!-- 页面内确认框：不依赖 wx.showModal，预览/真机都能用 -->
-<view class="mask" wx:if="{{confirm}}" catchtap="onConfirmCancel">
-  <view class="sheet" catchtap="noop">
+<view class="mask" wx:if="{{confirm}}" catchtap="onConfirmCancel">  <view class="sheet" catchtap="noop">
     <view class="sheet-title">{{confirm.title}}</view>
     <view class="sheet-content">{{confirm.content}}</view>
     <view class="sheet-btns">
@@ -105,3 +141,54 @@
     </view>
   </view>
 </view>
+
+<!-- 家庭信息：改家庭名称和孩子昵称（家长） -->
+<view class="mask" wx:if="{{famSheet}}" catchtap="onFamCancel">
+  <view class="sheet" catchtap="noop">
+    <view class="sheet-title">家庭信息</view>
+    <view class="sheet-content small">家庭名称和孩子昵称全端共用，称呼只显示你自己。改完点「存好」。</view>
+    <view class="fam-label tiny">家庭名称</view>
+    <input
+      id="famNameField"
+      class="sheet-input"
+      value="{{famName}}"
+      placeholder="比如 墨墨之家"
+      placeholder-class="ph"
+      maxlength="12"
+      bindinput="onFamName"
+    />
+    <view class="fam-label tiny">孩子的昵称</view>
+    <input
+      id="famChildField"
+      class="sheet-input"
+      value="{{famChild}}"
+      placeholder="比如 墨墨"
+      placeholder-class="ph"
+      maxlength="8"
+      bindinput="onFamChild"
+    />
+    <view class="fam-label tiny">你的称呼</view>
+    <input
+      id="famLabelField"
+      class="sheet-input"
+      value="{{famLabel}}"
+      placeholder="比如：爸爸、妈妈、爷爷、奶奶、老师"
+      placeholder-class="ph"
+      maxlength="6"
+      bindinput="onFamLabel"
+    />
+    <view class="fam-label tiny">家庭成员</view>
+    <view class="fam-members">
+      <view class="fam-member" wx:for="{{famMembers}}" wx:key="tag">
+        <view class="fm-avatar">{{item.avatar}}</view>
+        <view class="fm-name">{{item.name}}</view>
+        <view class="fm-role {{item.role === 'parent' ? 'p' : 'c'}}">{{item.role === 'parent' ? '家长' : '学生'}}</view>
+      </view>
+    </view>
+    <view class="sheet-btns">
+      <view class="sheet-btn" bindtap="onFamCancel">算了</view>
+      <view class="sheet-btn primary" bindtap="onFamSave">存好</view>
+    </view>
+  </view>
+</view>
+

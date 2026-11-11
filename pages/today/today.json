@@ -1,5 +1,5 @@
 {
-  "navigationBarTitleText": "今日",
+  "navigationBarTitleText": "今日清单",
   "navigationBarBackgroundColor": "#FDF8F3",
   "navigationBarTextStyle": "black",
   "enablePullDownRefresh": true,

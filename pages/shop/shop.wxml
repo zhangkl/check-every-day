@@ -72,7 +72,7 @@
         <view class="h3">账户积分 {{balance}}</view>
         <view class="tiny">兑换申请需要你同意后才会扣分</view>
       </view>
-      <view class="pill" bindtap="goApprove">待审批 {{pendingCount}}</view>
+      <view class="pill" bindtap="goApprove">兑换待处理 {{pendingCount}}</view>
     </view>
 
     <view class="card mg-row" wx:for="{{allGifts}}" wx:key="id">

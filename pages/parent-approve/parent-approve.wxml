@@ -1,6 +1,6 @@
 <view class="page-plain">
   <view class="hd">
-    <view class="h1">审批中心</view>
+    <view class="h1">兑换与心愿审批</view>
     <view class="muted">{{childName}}现在有 {{balance}} 分</view>
   </view>
 

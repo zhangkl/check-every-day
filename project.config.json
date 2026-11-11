@@ -2,10 +2,17 @@
   "description": "PDCA 好习惯 · 小学生每日学习自查与积分激励",
   "packOptions": {
     "ignore": [
-      {
-        "value": ".workbuddy",
-        "type": "folder"
-      }
+      { "value": ".workbuddy", "type": "folder" },
+      { "value": ".git", "type": "folder" },
+      { "value": "tests", "type": "folder" },
+      { "value": "sql", "type": "folder" },
+      { "value": ".gitignore", "type": "file" },
+      { "value": "package.json", "type": "file" },
+      { "value": "package-lock.json", "type": "file" },
+      { "value": "project.private.config.json", "type": "file" },
+      { "value": "**/.DS_Store", "type": "glob" },
+      { "value": "**/*.md", "type": "glob" },
+      { "value": "**/*.log", "type": "glob" }
     ],
     "include": []
   },

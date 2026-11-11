@@ -1,7 +1,7 @@
 /**
  * 语音转文字：腾讯云「录音文件识别」（异步任务版）。
  * 流程：读录音文件 → base64 → CreateRecTask 提交任务 → 轮询 DescribeTaskStatus 拿结果。
- * - 支持 3 分钟整条录音（该接口上限数小时）。
+ * - 支持 10 分钟整条录音（该接口上限数小时）。
  * - 云端路径（shared/…）先取签名地址下载；本地路径直接读文件。
  * - TC3-HMAC-SHA256 签名用 utils/tc3.js 的纯 JS 实现。
  */
@@ -16,9 +16,9 @@ try {
 const HOST = 'asr.tencentcloudapi.com'
 const SERVICE = 'asr'
 const VERSION = '2019-06-14'
-// 3 分钟 mp3 约 1MB，base64 后约 1.4MB
+// 10 分钟 mp3（32kbps）约 2.4MB，base64 后约 3.2MB，在腾讯云直传 5MB 限制内
 const POLL_INTERVAL = 3000
-const POLL_MAX = 40
+const POLL_MAX = 60 // 10 分钟长音频转写耗时更久，轮询窗口放大到 3 分钟
 
 function configured() {
   return !!(config.SECRET_ID && config.SECRET_KEY)
