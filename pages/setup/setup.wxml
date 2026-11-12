@@ -90,7 +90,7 @@
       </view>
 
       <view class="card" wx:else>
-        <view class="h3">{{invited ? '家人邀请你加入 🎉' : '输入家里的邀请码'}}</view>
+        <view class="h3">{{inviteTitle || '输入家里的邀请码'}}</view>
         <view class="field">
           <view class="label">6 位邀请码</view>
           <input
@@ -103,7 +103,7 @@
           />
         </view>
         <view class="field">
-          <view class="label">我的身份</view>
+          <view class="label">我的身份<text class="role-tip" wx:if="{{!joinRole}}"> · 先选一个</text></view>
           <view class="role-row">
             <view class="role-chip {{joinRole === 'child' ? 'on' : ''}}" data-role="child" bindtap="onJoinRole">🧒 我是孩子</view>
             <view class="role-chip {{joinRole === 'parent' ? 'on' : ''}}" data-role="parent" bindtap="onJoinRole">👨‍👩‍👧 我是家长</view>
@@ -121,7 +121,7 @@
             bindinput="onJoinPin"
           />
         </view>
-        <view class="tiny note">{{invited ? '邀请码已帮你填好，选好身份点下面按钮就加入啦。' : '邀请码在爸爸妈妈的手机上，「我的」页面里可以看到。'}}</view>
+        <view class="tiny note">{{invited ? '邀请码已填好，先选身份，再点下面按钮加入；家长需要输入家里的家长密码。' : '邀请码在爸爸妈妈的手机上，「我的」页面里可以看到。'}}</view>
       </view>
 
       <view class="err" wx:if="{{error}}">{{error}}</view>
@@ -139,7 +139,7 @@
         bindtap="onJoin"
         loading="{{submitting}}"
         disabled="{{submitting}}"
-      >{{invited ? '接受邀请，加入家庭' : '加入家庭'}}</button>
+      >{{invited ? '选好身份，加入家庭' : '加入家庭'}}</button>
     </block>
 
     <view class="foot tiny">任务清单、打卡记录和积分都保存在云端，换手机也不会丢。</view>

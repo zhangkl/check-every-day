@@ -593,9 +593,14 @@ async function mutate(fn) {
  * 云端 RLS 与 ced_join_family RPC；若将来开放多孩子/老师角色，权限要下沉到 RPC。
  */
 function canActAsParent() {
+  if (!isParent()) return false
   const cloudRole = state.member && state.member.member_role
-  if (cloudRole === 'child') return false
-  return isParent()
+  // 云端 member_role 只是「加入家庭时选的默认身份」，不是长期权威：
+  // 同一个微信用家长密码切到家长端后就是家长（profile 也是 uid|p / uid|c 双分身）。
+  // 只有「云端是孩子 + 本地没经过家长密码校验」才算伪造身份，仍然拦住。
+  // 注意 PIN 明文就在孩子能读到的 doc 里，这里是防误触，不是安全边界。
+  if (cloudRole === 'child' && readLocal().parentVerified !== true) return false
+  return true
 }
 
 function requireParent() {
@@ -751,7 +756,7 @@ async function signOut() {
   resetBootstrap()
   try {
     wx.removeStorageSync(CACHE_KEY)
-    writeLocal({ familyId: '', role: '' })
+    writeLocal({ familyId: '', role: '', parentVerified: false })
   } catch (e) {}
 }
 
@@ -830,7 +835,8 @@ async function joinFamily(code, opts) {
   state.familyId = familyId
   state.member = { family_id: familyId, member_role: 'child' }
   state.role = 'child'
-  writeLocal({ familyId: familyId, role: 'child' })
+  // 新加入的账号不继承本机上一位用户的家长验证标记
+  writeLocal({ familyId: familyId, role: 'child', parentVerified: false })
   try {
     await loadDoc()
     // 已是家庭成员（重复加入）时，以真实成员身份为准
@@ -1007,9 +1013,15 @@ function getRole() {
   return state.role === 'parent' ? 'parent' : 'child'
 }
 
-function setRole(role) {
+// verified=true 只允许页面层在家长密码校验通过（或家里没设密码）后传入。
+// 标记落在本地，重启后 bootstrap 仍能认出「这个微信已验证过家长身份」。
+function setRole(role, verified) {
   state.role = role === 'parent' ? 'parent' : 'child'
-  writeLocal({ role: state.role })
+  const patch = { role: state.role }
+  if (state.role === 'parent' && verified === true) patch.parentVerified = true
+  // 切回学生端立即清除，下次切家长要重新输密码
+  if (state.role === 'child') patch.parentVerified = false
+  writeLocal(patch)
 }
 
 function getFamily() {

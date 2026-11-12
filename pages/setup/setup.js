@@ -1,10 +1,13 @@
 const store = require('../../utils/store')
+const invite = require('../../utils/invite')
 
-// 分享卡片带来的待加入邀请码：登录跳转过程可能丢参数，先落 storage
-const PENDING_JOIN_KEY = 'ced_pending_join'
+// 分享卡片带来的邀请信息：登录跳转过程可能丢参数，先落 storage
+function readPending() {
+  return wx.getStorageSync(invite.PENDING_JOIN_KEY)
+}
 
-function validCode(code) {
-  return /^[A-Z0-9]{6}$/.test(String(code || '').trim().toUpperCase())
+function savePending(p) {
+  wx.setStorageSync(invite.PENDING_JOIN_KEY, p)
 }
 
 Page({
@@ -19,45 +22,43 @@ Page({
     createdCode: '',
     submitting: false,
     error: '',
-    invited: false
+    invited: false,
+    inviteFamily: '',
+    inviteTitle: ''
   },
 
   async onLoad(options) {
     options = options || {}
     this.setData({ local: options.local === '1' })
-    // 来自分享卡片：?join=XXXXXX[&role=parent] → 记住并切到「加入家庭」模式
-    const urlCode = String(options.join || '').trim().toUpperCase()
-    const pending = validCode(urlCode)
-      ? urlCode
-      : String(wx.getStorageSync(PENDING_JOIN_KEY) || '').trim().toUpperCase()
-    const fromShare = validCode(pending)
+    // 来自分享卡片：?join=XXXXXX[&fn=家庭名][&role=parent]
+    // 只记下邀请信息并切到「加入家庭」，绝不自动加入——身份由对方自己选、自己点按钮
+    const inv = invite.parseInvite(options, readPending())
+    const fromShare = !!inv
     if (fromShare) {
-      wx.setStorageSync(PENDING_JOIN_KEY, pending)
+      savePending({ code: inv.code, fn: inv.fn, role: inv.role })
       this.setData({
         mode: 'join',
-        joinCode: pending,
+        joinCode: inv.code,
         invited: true,
-        joinRole: options.role === 'parent' ? 'parent' : 'child'
+        inviteFamily: inv.fn,
+        inviteTitle: invite.inviteTitle(inv),
+        joinRole: inv.role || ''
       })
     }
 
     const boot = await store.bootstrap()
     if (boot.ok) {
       // 已在家庭里（比如自己点开自己的分享卡），不用再加入
-      if (fromShare) wx.removeStorageSync(PENDING_JOIN_KEY)
+      if (fromShare) wx.removeStorageSync(invite.PENDING_JOIN_KEY)
       wx.reLaunch({ url: '/pages/today/today' })
       return
     }
     if (boot.needLogin && !(options && options.local === '1')) {
-      // 未登录：先去登录，登录后回到本页，pending 码还在 storage 里，会自动加入
+      // 未登录：先去登录，登录后回到本页，pending 邀请信息还在 storage 里
       wx.reLaunch({ url: '/pages/login/login' })
       return
     }
-    // 已登录、还没加入家庭、且来自分享 → 孩子身份直接自动加入；
-    // 家长身份可能要输家长密码，让用户点按钮确认
-    if (fromShare && this.data.joinRole === 'child') {
-      this.onJoin()
-    }
+    // 已登录、还没加入家庭、且来自分享 → 停在加入页等对方选身份
   },
 
   toCreate() {
@@ -82,7 +83,13 @@ Page({
 
   onJoinRole(e) {
     const r = e.currentTarget.dataset.role
-    if (r === 'child' || r === 'parent') this.setData({ joinRole: r, error: '' })
+    if (r !== 'child' && r !== 'parent') return
+    this.setData({ joinRole: r, error: '' })
+    // 记住选择：中途跳去微信登录再回来，身份不用重选
+    if (this.data.invited) {
+      const inv = invite.parseInvite({}, readPending())
+      if (inv) savePending({ code: inv.code, fn: inv.fn, role: r })
+    }
   },
 
   onJoinPin(e) {
@@ -183,7 +190,11 @@ Page({
       this.setData({ error: '请输入家里的邀请码' })
       return
     }
-    const role = this.data.joinRole === 'parent' ? 'parent' : 'child'
+    if (this.data.joinRole !== 'child' && this.data.joinRole !== 'parent') {
+      this.setData({ error: '先选一下你是孩子还是家长' })
+      return
+    }
+    const role = this.data.joinRole
     this.setData({ submitting: true, error: '' })
     const res = await store.joinFamily(code, { role: role, pin: (this.data.joinPin || '').trim() })
     this.setData({ submitting: false })
@@ -192,7 +203,7 @@ Page({
       this.setData({ error: res.error })
       return
     }
-    wx.removeStorageSync(PENDING_JOIN_KEY)
+    wx.removeStorageSync(invite.PENDING_JOIN_KEY)
     // 身份由加入时选择决定（服务端校验家长密码），重复加入以真实成员身份为准
     getApp().globalData.role = res.role || role
     wx.reLaunch({ url: '/pages/today/today' })

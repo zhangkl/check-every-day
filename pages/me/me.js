@@ -1,5 +1,6 @@
 const store = require('../../utils/store')
 const guard = require('../../utils/guard')
+const invite = require('../../utils/invite')
 
 // 全量 emoji 头像池：空格分隔后切开，滑动网格随便选；也支持输入框粘贴任意 emoji
 const EMOJIS = (
@@ -132,11 +133,12 @@ Page({
     })
   },
 
-  // 微信原生分享：一张家庭码，对方点开填码加入，自己选孩子/家长身份
+  // 微信原生分享：一张家庭码，对方点开后停在加入页，自己选孩子/家长再点加入
   onShareAppMessage(res) {
+    const name = (this.data.family && this.data.family.name) || '我们家'
     return {
-      title: '邀请你加入「' + (this.data.family.name || '我们家') + '」，一起养成好习惯',
-      path: '/pages/setup/setup?join=' + (this.data.inviteCode || '')
+      title: '邀请你加入「' + name + '」，一起养成好习惯',
+      path: invite.buildSharePath(this.data.inviteCode, name)
     }
   },
 
@@ -191,10 +193,15 @@ Page({
     if (!name) name = (await this.readField('famNameField')).trim()
     if (!child) child = (await this.readField('famChildField')).trim()
     if (!label) label = (await this.readField('famLabelField')).trim()
-    const res = await store.setFamilyInfo(name, child)
-    if (!res.ok) {
-      wx.showToast({ title: res.error || '没存上，再试一次', icon: 'none' })
-      return
+    // 只改称呼时不再连带写一次家庭资料（少一次云端写入，也不受家庭信息校验牵连）
+    const fam = store.getFamily() || {}
+    const famChanged = name !== (fam.name || '') || child !== (fam.childName || '')
+    if (famChanged) {
+      const res = await store.setFamilyInfo(name, child)
+      if (!res.ok) {
+        wx.showToast({ title: res.error || '没存上，再试一次', icon: 'none' })
+        return
+      }
     }
     // 称呼留空 = 保持原称呼不变；写了就一起存
     if (label) {
@@ -220,7 +227,7 @@ Page({
   onSwitchToParent() {
     const pin = store.getPin()
     if (!pin) {
-      this.applyRole('parent')
+      this.applyRole('parent', true)
       return
     }
     wx.showModal({
@@ -233,7 +240,7 @@ Page({
           wx.showToast({ title: '密码不对', icon: 'none' })
           return
         }
-        this.applyRole('parent')
+        this.applyRole('parent', true)
       }
     })
   },
@@ -242,8 +249,8 @@ Page({
     this.applyRole('child')
   },
 
-  applyRole(role) {
-    getApp().switchRole(role)
+  applyRole(role, verified) {
+    getApp().switchRole(role, verified === true)
     this.setData({ role })
     wx.showToast({ title: role === 'parent' ? '已切到家长端' : '已切到学生端', icon: 'none' })
     wx.reLaunch({ url: '/pages/today/today' })

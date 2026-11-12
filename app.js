@@ -11,8 +11,9 @@ App({
   },
 
   // 切换身份后，各 tab 页在 onShow 里会重新读取并刷新自定义 tabBar
-  switchRole(role) {
-    store.setRole(role)
+  // verified 由「我的」页在家长密码校验通过后传入
+  switchRole(role, verified) {
+    store.setRole(role, verified)
     this.globalData.role = role
   }
 })

@@ -176,6 +176,39 @@ async function main() {
   local.setRole('child')
   ok((await local.adjustPoints(2, '本地越权')).ok === false, '本地孩子不能调分')
 
+  // ⑥ 云端默认 child 的微信，用家长密码切到家长端后应能做家长操作（双身份设计）
+  //    伪造本地身份、切回学生端、重启后未重新验证，都仍要拦住
+  db.session = { user: { id: 'u-c1' } }
+  // ⑤ 的本地模式会在共享 storage 里留下 mode=local，这里显式回到云端模式
+  const mine = db.members.filter(function (m) { return m.owner_id === 'u-c1' })[0]
+  global.wx.setStorageSync('ced_local_v2', {
+    mode: '', familyId: String(mine.family_id), role: 'child', parentVerified: false
+  })
+  const k = freshStore()
+  await k.bootstrap()
+  k.setRole('child')
+  ok((await k.adjustPoints(1, '孩子端')).ok === false, '⑥ 孩子端仍被拒')
+  k.setRole('parent')
+  ok(k.getRole() === 'parent', '⑥ 本地身份已改成 parent（未验证）')
+  ok((await k.adjustPoints(1, '伪造')).ok === false, '⑥ 没有家长密码校验标记仍被拒')
+  k.setRole('parent', true)
+  ok((await k.adjustPoints(2, '密码通过后加分')).ok === true, '⑥ 通过家长密码切家长端后可以调分')
+  ok((await k.setFamilyInfo('守卫家', '墨墨')).ok === true, '⑥ 家长端可以保存家庭信息')
+  ok((await k.setMyLabel('王老师')).ok === true, '⑥ 家长端可以保存称呼')
+  const prof = k.getDoc().profile || {}
+  ok(Object.keys(prof).some(function (key) {
+    return /\|p$/.test(key) && prof[key] && prof[key].label === '王老师'
+  }), '⑥ 称呼写进了 uid|p 家长分身')
+
+  const k2 = freshStore()
+  await k2.bootstrap()
+  ok(k2.getRole() === 'parent', '⑥ 重启后本地身份仍是家长端')
+  ok((await k2.adjustPoints(1, '重启后加分')).ok === true, '⑥ 重启后家长权限仍有效')
+  k2.setRole('child')
+  ok((await k2.adjustPoints(1, '切回学生端')).ok === false, '⑥ 切回学生端立即失去家长权限')
+  k2.setRole('parent')
+  ok((await k2.adjustPoints(1, '未重新验证')).ok === false, '⑥ 再切家长端需重新输家长密码')
+
   console.log('家长权限守卫：通过 ' + pass + ' 条' + (process.exitCode ? '，有失败' : '，失败 0 条'))
 }
 main().catch((e) => { console.error(e); process.exitCode = 1 })
